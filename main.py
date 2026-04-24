@@ -46,9 +46,10 @@ class OTPMonitorBot:
         ]
 
     def hide_phone_number(self, phone_number):
+        """Global Network style: 96778AW536 (first5 + AW + last3)"""
         phone_str = str(phone_number)
         if len(phone_str) >= 8:
-            return phone_str[:5] + '***' + phone_str[-4:]
+            return phone_str[:5] + 'AW' + phone_str[-3:]
         return phone_str
 
     def extract_operator_name(self, operator):
@@ -60,6 +61,190 @@ class OTPMonitorBot:
     def escape_markdown(self, text):
         text = str(text)
         return text.replace('`', "'")
+
+    def detect_language_from_text(self, message_text):
+        """
+        SMS message text এর script/character দেখে language detect করে।
+        sms_data[3] এর উপর নির্ভর না করে, actual message থেকে বের করে।
+        """
+        text = str(message_text)
+
+        # প্রতিটা character count করো
+        scores = {
+            'Arabic':     0,
+            'Persian':    0,
+            'Hebrew':     0,
+            'Russian':    0,
+            'Hindi':      0,
+            'Bengali':    0,
+            'Thai':       0,
+            'Chinese':    0,
+            'Japanese':   0,
+            'Korean':     0,
+            'Greek':      0,
+            'Turkish':    0,
+        }
+
+        for ch in text:
+            cp = ord(ch)
+            # Arabic / Urdu
+            if 0x0600 <= cp <= 0x06FF or 0x0750 <= cp <= 0x077F:
+                scores['Arabic'] += 1
+            # Hebrew
+            elif 0x0590 <= cp <= 0x05FF:
+                scores['Hebrew'] += 1
+            # Cyrillic (Russian, Ukrainian, Bulgarian...)
+            elif 0x0400 <= cp <= 0x04FF:
+                scores['Russian'] += 1
+            # Devanagari (Hindi, Marathi, Nepali)
+            elif 0x0900 <= cp <= 0x097F:
+                scores['Hindi'] += 1
+            # Bengali
+            elif 0x0980 <= cp <= 0x09FF:
+                scores['Bengali'] += 1
+            # Thai
+            elif 0x0E00 <= cp <= 0x0E7F:
+                scores['Thai'] += 1
+            # CJK (Chinese, Japanese Kanji)
+            elif 0x4E00 <= cp <= 0x9FFF or 0x3400 <= cp <= 0x4DBF:
+                scores['Chinese'] += 1
+            # Hiragana / Katakana (Japanese)
+            elif 0x3040 <= cp <= 0x30FF:
+                scores['Japanese'] += 1
+            # Korean Hangul
+            elif 0xAC00 <= cp <= 0xD7AF or 0x1100 <= cp <= 0x11FF:
+                scores['Korean'] += 1
+            # Greek
+            elif 0x0370 <= cp <= 0x03FF:
+                scores['Greek'] += 1
+
+        # সর্বোচ্চ score যেটা, সেটা return করো
+        best_lang = max(scores, key=scores.get)
+        best_score = scores[best_lang]
+
+        # Japanese: Chinese + Japanese char দুটোই থাকতে পারে
+        if scores['Japanese'] > 0:
+            return 'Japanese'
+
+        # কোনো non-Latin script না থাকলে → Latin ভাষা detect করো
+        if best_score == 0:
+            text_lower = text.lower()
+            # common Spanish markers
+            if any(w in text_lower for w in ['código', 'contraseña', 'verificación', 'su código', 'tu código']):
+                return 'Spanish'
+            # French markers  
+            if any(w in text_lower for w in ['votre', 'code est', 'vérification', 'ne pas partager', 'bonjour']):
+                return 'French'
+            # Portuguese markers
+            if any(w in text_lower for w in ['seu código', 'código de', 'não compartilhe', 'verificação']):
+                return 'Portuguese'
+            # German markers
+            if any(w in text_lower for w in ['ihr code', 'dein code', 'verifizierung', 'nicht weitergeben']):
+                return 'German'
+            # Turkish markers
+            if any(w in text_lower for w in ['doğrulama', 'kodunuz', 'paylaşmayın']):
+                return 'Turkish'
+            # Indonesian/Malay markers
+            if any(w in text_lower for w in ['kode', 'verifikasi', 'jangan bagikan']):
+                return 'Indonesian'
+            # Default Latin → English
+            return 'English'
+
+        return best_lang
+
+    def get_country_flag(self, phone_number):
+        """Phone prefix থেকে flag + code বের করে"""
+        phone = str(phone_number).strip().lstrip('+')
+        country_map = {
+            '880': ('BD', '🇧🇩'), '91': ('IN', '🇮🇳'), '92': ('PK', '🇵🇰'),
+            '94': ('LK', '🇱🇰'), '98': ('IR', '🇮🇷'), '93': ('AF', '🇦🇫'),
+            '95': ('MM', '🇲🇲'), '66': ('TH', '🇹🇭'), '62': ('ID', '🇮🇩'),
+            '60': ('MY', '🇲🇾'), '63': ('PH', '🇵🇭'), '65': ('SG', '🇸🇬'),
+            '84': ('VN', '🇻🇳'), '86': ('CN', '🇨🇳'), '81': ('JP', '🇯🇵'),
+            '82': ('KR', '🇰🇷'), '886': ('TW', '🇹🇼'),
+            '964': ('IQ', '🇮🇶'), '966': ('SA', '🇸🇦'), '971': ('AE', '🇦🇪'),
+            '963': ('SY', '🇸🇾'), '962': ('JO', '🇯🇴'), '961': ('LB', '🇱🇧'),
+            '967': ('YE', '🇾🇪'), '968': ('OM', '🇴🇲'), '965': ('KW', '🇰🇼'),
+            '974': ('QA', '🇶🇦'), '973': ('BH', '🇧🇭'), '972': ('IL', '🇮🇱'),
+            '90': ('TR', '🇹🇷'), '20': ('EG', '🇪🇬'), '212': ('MA', '🇲🇦'),
+            '213': ('DZ', '🇩🇿'), '216': ('TN', '🇹🇳'), '234': ('NG', '🇳🇬'),
+            '255': ('TZ', '🇹🇿'), '254': ('KE', '🇰🇪'), '256': ('UG', '🇺🇬'),
+            '7': ('RU', '🇷🇺'), '44': ('GB', '🇬🇧'), '33': ('FR', '🇫🇷'),
+            '49': ('DE', '🇩🇪'), '39': ('IT', '🇮🇹'), '34': ('ES', '🇪🇸'),
+            '31': ('NL', '🇳🇱'), '46': ('SE', '🇸🇪'), '47': ('NO', '🇳🇴'),
+            '48': ('PL', '🇵🇱'), '32': ('BE', '🇧🇪'), '41': ('CH', '🇨🇭'),
+            '1': ('US', '🇺🇸'), '55': ('BR', '🇧🇷'), '52': ('MX', '🇲🇽'),
+            '54': ('AR', '🇦🇷'), '57': ('CO', '🇨🇴'), '58': ('VE', '🇻🇪'),
+            '51': ('PE', '🇵🇪'), '56': ('CL', '🇨🇱'), '61': ('AU', '🇦🇺'),
+            '64': ('NZ', '🇳🇿'), '27': ('ZA', '🇿🇦'),
+        }
+        for length in (3, 2, 1):
+            prefix = phone[:length]
+            if prefix in country_map:
+                code, flag = country_map[prefix]
+                return flag, code
+        return '🌐', 'XX'
+
+    def get_platform_icon(self, message_text, service_field=''):
+        """SMS text থেকে platform icon + label বের করে"""
+        combined = (str(message_text) + ' ' + str(service_field)).lower()
+        platforms = [
+            ('facebook',  '📘', 'Facebook'),
+            ('fb.com',    '📘', 'Facebook'),
+            ('whatsapp',  '💬', 'WhatsApp'),
+            ('instagram', '📸', 'Instagram'),
+            ('telegram',  '✈️',  'Telegram'),
+            ('twitter',   '🐦', 'Twitter'),
+            ('x.com',     '🐦', 'Twitter'),
+            ('tiktok',    '🎵', 'TikTok'),
+            ('snapchat',  '👻', 'Snapchat'),
+            ('discord',   '🎮', 'Discord'),
+            ('google',    '🔍', 'Google'),
+            ('gmail',     '📧', 'Gmail'),
+            ('youtube',   '▶️',  'YouTube'),
+            ('apple',     '🍎', 'Apple'),
+            ('microsoft', '🪟', 'Microsoft'),
+            ('amazon',    '📦', 'Amazon'),
+            ('paypal',    '💳', 'PayPal'),
+            ('binance',   '🟡', 'Binance'),
+            ('bybit',     '🔵', 'ByBit'),
+            ('okx',       '⚫', 'OKX'),
+            ('coinbase',  '🔵', 'Coinbase'),
+            ('uber',      '🚗', 'Uber'),
+            ('grab',      '🟢', 'Grab'),
+            ('netflix',   '🎬', 'Netflix'),
+            ('spotify',   '🎵', 'Spotify'),
+            ('linkedin',  '💼', 'LinkedIn'),
+            ('viber',     '💜', 'Viber'),
+            ('wechat',    '💬', 'WeChat'),
+            ('bkash',     '🩷', 'bKash'),
+            ('nagad',     '🟠', 'Nagad'),
+            ('reddit',    '🟠', 'Reddit'),
+        ]
+        for keyword, icon, label in platforms:
+            if keyword in combined:
+                return icon, label
+        return '📩', 'SMS'
+
+    def detect_language(self, message_text, service_field=''):
+        """SMS language detect করে Arabic/English/Spanish etc"""
+        combined = (str(message_text) + ' ' + str(service_field)).lower()
+        # Arabic script check
+        if any('؀' <= c <= 'ۿ' for c in str(message_text)):
+            return 'Arabic'
+        lang_map = {
+            'arabic': 'Arabic', 'english': 'English', 'spanish': 'Spanish',
+            'french': 'French', 'german': 'German', 'turkish': 'Turkish',
+            'russian': 'Russian', 'portuguese': 'Portuguese',
+            'hindi': 'Hindi', 'bengali': 'Bengali', 'urdu': 'Urdu',
+            'chinese': 'Chinese', 'japanese': 'Japanese', 'korean': 'Korean',
+            'indonesian': 'Indonesian', 'malay': 'Malay', 'thai': 'Thai',
+            'vietnamese': 'Vietnamese', 'persian': 'Persian',
+        }
+        for key, lang in lang_map.items():
+            if key in combined:
+                return lang
+        return 'English' 
 
     async def send_telegram_message(self, message, chat_id=None, reply_markup=None):
         if chat_id is None:
@@ -128,33 +313,39 @@ class OTPMonitorBot:
     def create_otp_id(self, timestamp, phone_number):
         return f"{timestamp}_{phone_number}"
 
-    def format_message(self, sms_data, message_text, otp_code):
-        timestamp = self.escape_markdown(sms_data[0])
-        operator = self.escape_markdown(self.extract_operator_name(sms_data[1]))
-        phone = self.escape_markdown(self.hide_phone_number(sms_data[2]))
-        service = self.escape_markdown(sms_data[3] if len(sms_data) > 3 else 'Unknown')
-        msg = self.escape_markdown(message_text)
-        code = self.escape_markdown(otp_code) if otp_code else 'N/A'
+    def format_main_message(self, sms_data, message_text, otp_code):
+        """Global Network style — main info message"""
+        raw_phone = str(sms_data[2])
+        phone     = self.hide_phone_number(raw_phone)
 
-        return (
-            "🔥 *𝐅𝐈𝐑𝐒𝐓 𝐎𝐓𝐏 𝐑𝐄𝐂𝐄𝐈𝐕𝐄𝐃* 🔥\n"
-            "➖➖➖➖➖➖➖➖➖➖➖\n\n"
-            f"📅 *𝐓𝐢𝐦𝐞:* `{timestamp}`\n"
-            f"📱 *𝐍𝐮𝐦𝐛𝐞𝐫:* `{phone}`\n"
-            f"🏢 *𝐎𝐩𝐞𝐫𝐚𝐭𝐨𝐫:* `{operator}`\n"
-            f"📟 *𝐏𝐥𝐚𝐭𝐟𝐨𝐫𝐦:* `{service}`\n\n"
-            f"🟢 *𝐎𝐓𝐏 𝐂𝐨𝐝𝐞:* `{code}`\n\n"
-            f"📝 *𝐌𝐞𝐬𝐬𝐚𝐠𝐞:*\n`{msg}`\n\n"
-            "➖➖➖➖➖➖➖➖➖➖➖\n"
-            "🤖 *𝐎𝐓𝐏 𝐌𝐨𝐧𝐢𝐭𝐨𝐫 𝐁𝐨𝐭*"
-        )
+        # message text এর actual script দেখে language detect করো
+        language = self.detect_language_from_text(message_text)
+
+        flag, country_code    = self.get_country_flag(raw_phone)
+        plat_icon, plat_label = self.get_platform_icon(message_text, str(sms_data[3] if len(sms_data) > 3 else ''))
+
+        # 🇾🇪 #YE 💬 96778AW536
+        # #Arabic
+        line1 = f"{flag} #{country_code} {plat_icon} {phone}"
+        line2 = f"#{language}"
+
+        return line1 + "\n" + line2
+
+    def format_otp_message(self, otp_code):
+        """OTP শুধু আলাদা message হিসেবে — copy করা সহজ হয়"""
+        code = otp_code if otp_code else 'N/A'
+        return code
+
+    # backward compat alias
+    def format_message(self, sms_data, message_text, otp_code):
+        return self.format_main_message(sms_data, message_text, otp_code)
 
     def create_response_buttons(self):
+        """Global Network style: Main Channel | Bot Panel"""
         keyboard = [
-            [InlineKeyboardButton("📱 Number Channel", url="https://t.me/earning_hub_number_channel")],
             [
-                InlineKeyboardButton("🤖 Number bot", url="https://t.me/EARNING_HUB_NUMBER_BOT"),
-                InlineKeyboardButton("📢 main Channel", url="https://t.me/earning_hub_official_channel")
+                InlineKeyboardButton("Main Channel", url="https://t.me/earning_hub_official_channel"),
+                InlineKeyboardButton("Bot Panel", url="https://t.me/EARNING_HUB_NUMBER_BOT"),
             ]
         ]
         return InlineKeyboardMarkup(keyboard)
@@ -282,34 +473,31 @@ class OTPMonitorBot:
                         if otp_id not in self.processed_otps:
                             logger.info(f"🚨 FIRST OTP DETECTED: {timestamp}")
 
-                            if otp_code:
-                                logger.info(f"🔐 OTP Code: {otp_code}")
+                            # ── Message 1: info (flag + platform + masked number + language) ──
+                            main_msg     = self.format_main_message(first_sms, message_text, otp_code)
+                            reply_markup = self.create_response_buttons()
+                            success1 = await self.send_telegram_message(main_msg, reply_markup=reply_markup)
 
-                                formatted_msg = self.format_message(first_sms, message_text, otp_code)
-                                reply_markup = self.create_response_buttons()
+                            # ── Message 2: শুধু OTP code (copy করা সহজ) ──
+                            otp_msg  = self.format_otp_message(otp_code)
+                            success2 = await self.send_telegram_message(otp_msg)
 
-                                success = await self.send_telegram_message(
-                                    formatted_msg,
-                                    reply_markup=reply_markup
-                                )
+                            success = success1 or success2
 
-                                self.processed_otps.add(otp_id)
-                                self.processed_count += 1
+                            self.processed_otps.add(otp_id)
+                            self.processed_count += 1
 
-                                if self.processed_count >= 1000:
-                                    self.processed_otps.clear()
-                                    self.processed_count = 0
-                                    logger.info("🧹 Processed OTPs cache cleared")
+                            if self.processed_count >= 1000:
+                                self.processed_otps.clear()
+                                self.processed_count = 0
+                                logger.info("🧹 Cache cleared")
 
-                                if success:
-                                    self.total_otps_sent += 1
-                                    self.last_otp_time = current_time
-                                    logger.info(f"✅ OTP SENT: {timestamp} - Total: {self.total_otps_sent}")
-                                else:
-                                    logger.info(f"❌ Telegram send failed: {timestamp}")
+                            if success:
+                                self.total_otps_sent += 1
+                                self.last_otp_time = current_time
+                                logger.info(f"✅ SENT: {timestamp} OTP={otp_code} Total={self.total_otps_sent}")
                             else:
-                                self.processed_otps.add(otp_id)
-                                logger.info(f"⚠️ OTP not found. Full data: {first_sms}")
+                                logger.warning(f"❌ Send failed: {timestamp}")
                         else:
                             logger.debug(f"⏩ Already Processed: {timestamp}")
                     else:
@@ -328,13 +516,12 @@ class OTPMonitorBot:
                 await asyncio.sleep(1)
 
 async def main():
-    # Updated configuration from your new request
     TELEGRAM_BOT_TOKEN = "7955403590:AAFA_UsxTrbmiY9zSlFz3B9aZJ-XP0C2SYc"
     GROUP_CHAT_ID = "-1003247504066"
-    SESSION_COOKIE = "pmq1953fk46kq88srt562ui7p7"  # Updated cookie from new request
-    TARGET_HOST = "94.23.120.156"  # Updated host from new request
-    CSSTR_PARAM = "71348c229af01ebba6506e39046c2890"  # Keep as is (not changed in new request)
-    TIMESTAMP_PARAM = "1776879410363"  # Updated timestamp from new request
+    SESSION_COOKIE = "8da33674c0afe01df340e2fdab40cd95"
+    TARGET_HOST = "168.119.13.175"
+    CSSTR_PARAM = "702e1a61e513a43c6e46dcdd9f1f7cce"
+    TIMESTAMP_PARAM = "1777019662550"
     TARGET_URL = f"http://{TARGET_HOST}/ints/client/res/data_smscdr.php"
 
     print("=" * 50)
