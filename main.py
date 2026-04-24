@@ -49,7 +49,7 @@ class OTPMonitorBot:
         """Global Network style: 96778AW536 (first5 + AW + last3)"""
         phone_str = str(phone_number)
         if len(phone_str) >= 8:
-            return phone_str[:5] + 'AW' + phone_str[-3:]
+            return phone_str[:5] + '***' + phone_str[-4:]
         return phone_str
 
     def extract_operator_name(self, operator):
@@ -246,7 +246,8 @@ class OTPMonitorBot:
                 return lang
         return 'English' 
 
-    async def send_telegram_message(self, message, chat_id=None, reply_markup=None):
+    async def send_telegram_message(self, message, chat_id=None, reply_markup=None, plain=False):
+        """plain=True হলে parse_mode ছাড়া পাঠায় — শুধু digits থাকলে Telegram auto copy button দেয়"""
         if chat_id is None:
             chat_id = self.group_chat_id
 
@@ -257,7 +258,7 @@ class OTPMonitorBot:
             await bot.send_message(
                 chat_id=chat_id,
                 text=message,
-                parse_mode='Markdown',
+                parse_mode=None if plain else 'Markdown',
                 reply_markup=reply_markup,
                 disable_web_page_preview=True
             )
@@ -480,7 +481,7 @@ class OTPMonitorBot:
 
                             # ── Message 2: শুধু OTP code (copy করা সহজ) ──
                             otp_msg  = self.format_otp_message(otp_code)
-                            success2 = await self.send_telegram_message(otp_msg)
+                            success2 = await self.send_telegram_message(otp_msg, plain=True)
 
                             success = success1 or success2
 
