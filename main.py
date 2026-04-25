@@ -15,6 +15,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ─── Number Bot HTTP URL ───────────────────────────────────────────────────────
+NUMBER_BOT_HTTP_URL = "http://number-bot-production.up.railway.app/otp"
+# ──────────────────────────────────────────────────────────────────────────────
+
 AUTO_DELETE_SECONDS = 15 * 60  # ১৫ মিনিট
 
 class OTPMonitorBot:
@@ -119,8 +123,8 @@ class OTPMonitorBot:
         )
 
         keyboard = [
-            [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/FBDEALZONEOWNER")],
-            [InlineKeyboardButton("📢 Channel", url="https://t.me/FBDEALZONEofficial")]
+            [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/sadhin8miya")],
+            [InlineKeyboardButton("📢 Channel", url="https://t.me/+QylG3hEY19c1Y2Y0")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -168,13 +172,45 @@ class OTPMonitorBot:
 
     def create_response_buttons(self):
         keyboard = [
-            [InlineKeyboardButton("📱 Number Channel", url="https://t.me/earning_hub_number_channel")],
+            [InlineKeyboardButton("📱 Number Channel", url="https://t.me/+eUvC-joJVa45NjZl")],
             [
-                InlineKeyboardButton("🤖 Number bot", url="https://t.me/EARNING_HUB_NUMBER_BOT"),
-                InlineKeyboardButton("📢 main Channel", url="https://t.me/earning_hub_official_channel")
+                InlineKeyboardButton("🤖 Number bot", url="https://t.me/FAST_SMS_NUMBER_BOT"),
+                InlineKeyboardButton("📢 main Channel", url="https://t.me/+QylG3hEY19c1Y2Y0")
             ]
         ]
         return InlineKeyboardMarkup(keyboard)
+
+    async def notify_number_bot(self, phone_number: str, otp_code: str, service: str):
+        import urllib.request as _req
+        import json as _json
+
+        clean_number = re.sub(r"\D", "", str(phone_number))
+        clean_otp = re.sub(r"[\s\-]", "", str(otp_code))
+        clean_service = str(service).lower().split()[0] if service else "other"
+
+        payload = {
+            "number": clean_number,
+            "otp":    clean_otp,
+            "service": clean_service
+        }
+
+        def _post():
+            data = _json.dumps(payload).encode("utf-8")
+            request = _req.Request(
+                NUMBER_BOT_HTTP_URL,
+                data=data,
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+            with _req.urlopen(request, timeout=10) as resp:
+                return _json.loads(resp.read().decode())
+
+        loop = asyncio.get_event_loop()
+        try:
+            result = await loop.run_in_executor(None, _post)
+            logger.info(f"✅ Number bot notified → number={clean_number} otp={clean_otp} result={result}")
+        except Exception as e:
+            logger.warning(f"⚠️ Number bot HTTP notify failed (non-critical): {e}")
 
     def fetch_sms_data(self):
         current_date = time.strftime("%Y-%m-%d")
@@ -326,6 +362,9 @@ class OTPMonitorBot:
                                     self.last_otp_time = current_time
                                     logger.info(f"✅ OTP SENT: {timestamp} - Total: {self.total_otps_sent}")
 
+                                    service_name = first_sms[3] if len(first_sms) > 3 else "other"
+                                    await self.notify_number_bot(phone_number, otp_code, service_name)
+
                                     asyncio.create_task(
                                         self.delete_message_after_delay(message_id, AUTO_DELETE_SECONDS)
                                     )
@@ -352,12 +391,17 @@ class OTPMonitorBot:
                 await asyncio.sleep(1)
 
 async def main():
-    TELEGRAM_BOT_TOKEN = "7955403590:AAFA_UsxTrbmiY9zSlFz3B9aZJ-XP0C2SYc"
-    GROUP_CHAT_ID = "-1003247504066"
-    SESSION_COOKIE = "d00ea73d01c0253ce612ecab9a93d4c3"
-    TARGET_HOST = "168.119.13.175"
-    CSSTR_PARAM = "3acc348a709215e69664db0772be8876"
-    TIMESTAMP_PARAM = "1777111275979"
+    # ==================== আপডেট করা তথ্য ====================
+    TELEGRAM_BOT_TOKEN = "8185988088:AAF2aW5exkeA2SDRWiAG8t8Gy4RHQ4GoDSI"
+    GROUP_CHAT_ID = "-1003774165897"
+    
+    # নতুন তথ্য অনুযায়ী আপডেট:
+    SESSION_COOKIE = "h12kbh7mqlbfj4svh4ks7ij50d"  # ← পরিবর্তন করা হয়েছে
+    TARGET_HOST = "94.23.120.156"                  # ← পরিবর্তন করা হয়েছে
+    CSSTR_PARAM = "3acc348a709215e69664db0772be8876"  # ← আগের মতোই (পরিবর্তন করা লাগবে না)
+    TIMESTAMP_PARAM = "1777123239675"               # ← পরিবর্তন করা হয়েছে
+    # ========================================================
+    
     TARGET_URL = f"http://{TARGET_HOST}/ints/client/res/data_smscdr.php"
 
     print("=" * 50)
