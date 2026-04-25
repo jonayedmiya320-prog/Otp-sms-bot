@@ -18,13 +18,13 @@ logger = logging.getLogger(__name__)
 AUTO_DELETE_SECONDS = 15 * 60  # ১৫ মিনিট
 
 class OTPMonitorBot:
-    def __init__(self, telegram_token, group_chat_id, session_cookie, target_url, target_host, sesskey_param, timestamp_param):
+    def __init__(self, telegram_token, group_chat_id, session_cookie, target_url, target_host, csstr_param, timestamp_param):
         self.telegram_token = telegram_token
         self.group_chat_id = group_chat_id
         self.session_cookie = session_cookie
         self.target_url = target_url
         self.target_host = target_host
-        self.sesskey_param = sesskey_param
+        self.csstr_param = csstr_param
         self.timestamp_param = timestamp_param
         self.processed_otps = set()
         self.processed_count = 0
@@ -79,7 +79,7 @@ class OTPMonitorBot:
                 disable_web_page_preview=True
             )
             logger.info("✅ Telegram message sent successfully")
-            return sent_msg.message_id  # message_id রিটার্ন করা হচ্ছে
+            return sent_msg.message_id
         except TelegramError as e:
             logger.info(f"❌ Telegram Error: {e}")
             print(f"❌ Telegram Error: {e}")
@@ -148,7 +148,6 @@ class OTPMonitorBot:
         return f"{timestamp}_{phone_number}"
 
     def format_message(self, sms_data, message_text, otp_code):
-        # ✅ Time লাইন বাদ দেওয়া হয়েছে
         operator = self.escape_markdown(self.extract_operator_name(sms_data[1]))
         phone = self.escape_markdown(self.hide_phone_number(sms_data[2]))
         service = self.escape_markdown(sms_data[3] if len(sms_data) > 3 else 'Unknown')
@@ -183,17 +182,11 @@ class OTPMonitorBot:
         headers = {
             'Host': self.target_host,
             'Connection': 'keep-alive',
-            'sec-ch-ua-platform': '"Android"',
-            'X-Requested-With': 'XMLHttpRequest',
             'User-Agent': 'Mozilla/5.0 (Linux; Android 16; 23129RN51X Build/BP2A.250605.031.A3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.7680.177 Mobile Safari/537.36',
             'Accept': 'application/json, text/javascript, */*; q=0.01',
-            'sec-ch-ua': '"Chromium";v="146", "Not-A.Brand";v="24", "Android WebView";v="146"',
-            'sec-ch-ua-mobile': '?1',
-            'Sec-Fetch-Site': 'same-origin',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Dest': 'empty',
-            'Referer': f'https://{self.target_host}/agent/SMSCDRReports',
-            'Accept-Encoding': 'gzip, deflate, br, zstd',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Referer': f'http://{self.target_host}/ints/client/SMSCDRStats',
+            'Accept-Encoding': 'gzip, deflate',
             'Accept-Language': 'en-US,en;q=0.9,fr-DZ;q=0.8,fr;q=0.7,ru-RU;q=0.6,ru;q=0.5,kk-KZ;q=0.4,kk;q=0.3,ar-AE;q=0.2,ar;q=0.1,es-ES;q=0.1,es;q=0.1,uk-UA;q=0.1,uk;q=0.1,pt-PT;q=0.1,pt;q=0.1,fa-IR;q=0.1,fa;q=0.1,ms-MY;q=0.1,ms;q=0.1,bn-BD;q=0.1,bn;q=0.1',
             'Cookie': f'PHPSESSID={self.session_cookie}'
         }
@@ -201,12 +194,15 @@ class OTPMonitorBot:
         params = {
             'fdate1': f'{current_date} 00:00:00',
             'fdate2': f'{current_date} 23:59:59',
-            'frange': '', 'fclient': '', 'fnum': '', 'fcli': '',
+            'frange': '', 'fnum': '', 'fcli': '',
             'fgdate': '', 'fgmonth': '', 'fgrange': '',
-            'fgclient': '', 'fgnumber': '', 'fgcli': '', 'fg': '0',
-            'sesskey': self.sesskey_param,
-            'sEcho': '1', 'iColumns': '9', 'sColumns': ',,,,,,,,',
-            'iDisplayStart': '0', 'iDisplayLength': '25',
+            'fgnumber': '', 'fgcli': '', 'fg': '0',
+            'csstr': self.csstr_param,
+            'sEcho': '1', 
+            'iColumns': '7', 
+            'sColumns': ',,,,,,',
+            'iDisplayStart': '0', 
+            'iDisplayLength': '25',
             'mDataProp_0': '0', 'sSearch_0': '', 'bRegex_0': 'false',
             'bSearchable_0': 'true', 'bSortable_0': 'true',
             'mDataProp_1': '1', 'sSearch_1': '', 'bRegex_1': 'false',
@@ -221,10 +217,6 @@ class OTPMonitorBot:
             'bSearchable_5': 'true', 'bSortable_5': 'true',
             'mDataProp_6': '6', 'sSearch_6': '', 'bRegex_6': 'false',
             'bSearchable_6': 'true', 'bSortable_6': 'true',
-            'mDataProp_7': '7', 'sSearch_7': '', 'bRegex_7': 'false',
-            'bSearchable_7': 'true', 'bSortable_7': 'true',
-            'mDataProp_8': '8', 'sSearch_8': '', 'bRegex_8': 'false',
-            'bSearchable_8': 'true', 'bSortable_8': 'false',
             'sSearch': '', 'bRegex': 'false',
             'iSortCol_0': '0', 'sSortDir_0': 'desc', 'iSortingCols': '1',
             '_': self.timestamp_param
@@ -334,7 +326,6 @@ class OTPMonitorBot:
                                     self.last_otp_time = current_time
                                     logger.info(f"✅ OTP SENT: {timestamp} - Total: {self.total_otps_sent}")
 
-                                    # ✅ ১৫ মিনিট পর অটো ডিলিট
                                     asyncio.create_task(
                                         self.delete_message_after_delay(message_id, AUTO_DELETE_SECONDS)
                                     )
@@ -363,11 +354,11 @@ class OTPMonitorBot:
 async def main():
     TELEGRAM_BOT_TOKEN = "7955403590:AAFA_UsxTrbmiY9zSlFz3B9aZJ-XP0C2SYc"
     GROUP_CHAT_ID = "-1003247504066"
-    SESSION_COOKIE = "c2b4a36f8944184daccc7f1b67b33226"
-    TARGET_HOST = "konektapremium.net"
-    SESSKEY_PARAM = "Q05RR0FSUUZBVA=="
-    TIMESTAMP_PARAM = "1777098078272"
-    TARGET_URL = f"https://{TARGET_HOST}/agent/res/data_smscdr.php"
+    SESSION_COOKIE = "d00ea73d01c0253ce612ecab9a93d4c3"
+    TARGET_HOST = "168.119.13.175"
+    CSSTR_PARAM = "3acc348a709215e69664db0772be8876"
+    TIMESTAMP_PARAM = "1777111275979"
+    TARGET_URL = f"http://{TARGET_HOST}/ints/client/res/data_smscdr.php"
 
     print("=" * 50)
     print("🤖 OTP MONITOR BOT - FIRST OTP ONLY")
@@ -382,7 +373,7 @@ async def main():
         session_cookie=SESSION_COOKIE,
         target_url=TARGET_URL,
         target_host=TARGET_HOST,
-        sesskey_param=SESSKEY_PARAM,
+        csstr_param=CSSTR_PARAM,
         timestamp_param=TIMESTAMP_PARAM
     )
 
