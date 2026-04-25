@@ -123,7 +123,7 @@ class OTPMonitorBot:
         )
 
         keyboard = [
-            [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/sadhin8miya")],
+            [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/Asif_store_bot")],
             [InlineKeyboardButton("📢 Channel", url="https://t.me/+QylG3hEY19c1Y2Y0")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
