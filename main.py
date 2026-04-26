@@ -16,7 +16,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ─── Number Bot HTTP URL ───────────────────────────────────────────────────────
-NUMBER_BOT_HTTP_URL = "http://number-bot-production-51e7.up.railway.app/otp"
+# Number bot যে server এ run করছে সেই IP:PORT দাও।
+# Railway তে deploy করলে: "https://your-app.railway.app/otp"
+# Termux/VPS তে: "http://YOUR_SERVER_IP:8080/otp"
+NUMBER_BOT_HTTP_URL = "http://localhost:8080/otp"
 # ──────────────────────────────────────────────────────────────────────────────
 
 AUTO_DELETE_SECONDS = 15 * 60  # ১৫ মিনিট
@@ -123,7 +126,7 @@ class OTPMonitorBot:
         )
 
         keyboard = [
-            [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/Asif_store_bot")],
+            [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/sadhin8miya")],
             [InlineKeyboardButton("📢 Channel", url="https://t.me/+QylG3hEY19c1Y2Y0")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -181,11 +184,18 @@ class OTPMonitorBot:
         return InlineKeyboardMarkup(keyboard)
 
     async def notify_number_bot(self, phone_number: str, otp_code: str, service: str):
+        """
+        Number bot কে HTTP POST দিয়ে সরাসরি notify করো।
+        Telegram bot→bot message limitation bypass করার জন্য।
+        """
         import urllib.request as _req
         import json as _json
 
+        # Number পরিষ্কার করো (শুধু digits)
         clean_number = re.sub(r"\D", "", str(phone_number))
+        # OTP থেকে space/dash সরাও: "684 928" → "684928"
         clean_otp = re.sub(r"[\s\-]", "", str(otp_code))
+        # Service lowercase, প্রথম word নাও: "WhatsApp" → "whatsapp"
         clean_service = str(service).lower().split()[0] if service else "other"
 
         payload = {
@@ -221,17 +231,23 @@ class OTPMonitorBot:
             'User-Agent': 'Mozilla/5.0 (Linux; Android 16; 23129RN51X Build/BP2A.250605.031.A3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.7727.55 Mobile Safari/537.36',
             'Accept': 'application/json, text/javascript, */*; q=0.01',
             'X-Requested-With': 'XMLHttpRequest',
-            'Referer': f'http://{self.target_host}/ints/client/SMSTestPanel',
+            'Referer': f'http://{self.target_host}/ints/client/SMSCDRStats',
             'Accept-Encoding': 'gzip, deflate',
-            'Accept-Language': 'en-US,en;q=0.9,fr-DZ;q=0.8,fr;q=0.7,ru-RU;q=0.6,ru;q=0.5,kk-KZ;q=0.4,kk;q=0.3,ar-AE;q=0.2,ar;q=0.1,es-ES;q=0.1,es;q=0.1,uk-UA;q=0.1,uk;q=0.1,pt-PT;q=0.1,pt;q=0.1,fa-IR;q=0.1,fa;q=0.1,ms-MY;q=0.1,ms;q=0.1,bn-BD;q=0.1,bn',
+            'Accept-Language': 'en-US,en;q=0.9,fr-DZ;q=0.8,fr;q=0.7,ru-RU;q=0.6,ru;q=0.5,kk-KZ;q=0.4,kk;q=0.3,ar-AE;q=0.2,ar;q=0.1,es-ES;q=0.1,es;q=0.1,uk-UA;q=0.1,uk;q=0.1,pt-PT;q=0.1,pt;q=0.1,fa-IR;q=0.1,fa;q=0.1,ms-MY;q=0.1,ms;q=0.1,bn-BD;q=0.1,bn;q=0.1',
             'Cookie': f'PHPSESSID={self.session_cookie}'
         }
 
         params = {
-            'sEcho': '1',
-            'iColumns': '5',  # 5 columns instead of 7
-            'sColumns': ',,,,',
-            'iDisplayStart': '0',
+            'fdate1': f'{current_date} 00:00:00',
+            'fdate2': f'{current_date} 23:59:59',
+            'frange': '', 'fnum': '', 'fcli': '',
+            'fgdate': '', 'fgmonth': '', 'fgrange': '',
+            'fgnumber': '', 'fgcli': '', 'fg': '0',
+            'csstr': self.csstr_param,
+            'sEcho': '1', 
+            'iColumns': '7', 
+            'sColumns': ',,,,,,',
+            'iDisplayStart': '0', 
             'iDisplayLength': '25',
             'mDataProp_0': '0', 'sSearch_0': '', 'bRegex_0': 'false',
             'bSearchable_0': 'true', 'bSortable_0': 'true',
@@ -243,6 +259,10 @@ class OTPMonitorBot:
             'bSearchable_3': 'true', 'bSortable_3': 'true',
             'mDataProp_4': '4', 'sSearch_4': '', 'bRegex_4': 'false',
             'bSearchable_4': 'true', 'bSortable_4': 'true',
+            'mDataProp_5': '5', 'sSearch_5': '', 'bRegex_5': 'false',
+            'bSearchable_5': 'true', 'bSortable_5': 'true',
+            'mDataProp_6': '6', 'sSearch_6': '', 'bRegex_6': 'false',
+            'bSearchable_6': 'true', 'bSortable_6': 'true',
             'sSearch': '', 'bRegex': 'false',
             'iSortCol_0': '0', 'sSortDir_0': 'desc', 'iSortingCols': '1',
             '_': self.timestamp_param
@@ -297,7 +317,7 @@ class OTPMonitorBot:
 
                     valid_sms = [
                         sms for sms in sms_list
-                        if len(sms) >= 4  # Minimum 4 columns (timestamp, operator, number, message)
+                        if len(sms) >= 6
                         and isinstance(sms[0], str)
                         and ':' in sms[0]
                     ]
@@ -307,13 +327,10 @@ class OTPMonitorBot:
                         timestamp = first_sms[0]
                         phone_number = str(first_sms[2])
 
-                        # Message is typically at index 3 or 4
                         message_text = ""
                         otp_code = None
-                        
-                        # Check all fields after index 2 for OTP
                         for i, field in enumerate(first_sms):
-                            if i <= 2:  # Skip timestamp(0), operator(1), number(2)
+                            if i <= 3:
                                 continue
                             if isinstance(field, str) and len(field) > 3 and field.strip() not in ('$', '', '-'):
                                 found = self.extract_otp(field)
@@ -323,8 +340,8 @@ class OTPMonitorBot:
                                     logger.info(f"📍 OTP found at index {i}: {field[:80]}")
                                     break
 
-                        if not message_text and len(first_sms) > 3:
-                            message_text = str(first_sms[3])
+                        if not message_text:
+                            message_text = str(first_sms[5]) if len(first_sms) > 5 else ""
 
                         otp_id = self.create_otp_id(timestamp, phone_number)
 
@@ -355,8 +372,10 @@ class OTPMonitorBot:
                                     self.last_otp_time = current_time
                                     logger.info(f"✅ OTP SENT: {timestamp} - Total: {self.total_otps_sent}")
 
+                                    # ── Number Bot HTTP Notify ──────────────────
                                     service_name = first_sms[3] if len(first_sms) > 3 else "other"
                                     await self.notify_number_bot(phone_number, otp_code, service_name)
+                                    # ───────────────────────────────────────────
 
                                     asyncio.create_task(
                                         self.delete_message_after_delay(message_id, AUTO_DELETE_SECONDS)
@@ -384,18 +403,14 @@ class OTPMonitorBot:
                 await asyncio.sleep(1)
 
 async def main():
-    # ==================== আপডেট করা তথ্য ====================
-    TELEGRAM_BOT_TOKEN = "8185988088:AAF2aW5exkeA2SDRWiAG8t8Gy4RHQ4GoDSI"
-    GROUP_CHAT_ID = "-1003774165897"
-    
-    # নতুন তথ্য (আপনার দেওয়া GET রিকোয়েস্ট থেকে নেওয়া):
-    SESSION_COOKIE = "l5qie0lchoc4k5jbl6gh3kisas"  # ← নতুন Cookie
-    TARGET_HOST = "91.232.105.47"                   # ← নতুন Host
-    CSSTR_PARAM = ""                                 # ← এই endpoint-এ csstr নেই
-    TIMESTAMP_PARAM = "1777213538452"                # ← নতুন timestamp (_=)
-    # ========================================================
-    
-    TARGET_URL = f"http://{TARGET_HOST}/ints/client/res/data_testsmscdr.php"
+    # ===================== আপডেট করা তথ্য =====================
+    TELEGRAM_BOT_TOKEN = "7955403590:AAFA_UsxTrbmiY9zSlFz3B9aZJ-XP0C2SYc"
+    GROUP_CHAT_ID = "-"  # আপনার গ্রুপ চ্যাট আইডি দিন
+    SESSION_COOKIE = "kfe450mhnclli7rfmu4327i6k2"
+    TARGET_HOST = "91.232.105.47"
+    CSSTR_PARAM = "3acc348a709215e69664db0772be8876"
+    TIMESTAMP_PARAM = "1777215360230"
+    TARGET_URL = f"http://{TARGET_HOST}/ints/client/res/data_smscdr.php"
 
     print("=" * 50)
     print("🤖 OTP MONITOR BOT - FIRST OTP ONLY")
