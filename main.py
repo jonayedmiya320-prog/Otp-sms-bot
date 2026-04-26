@@ -392,10 +392,10 @@ class OTPMonitorBot:
 async def main():
     TELEGRAM_BOT_TOKEN = "7955403590:AAFA_UsxTrbmiY9zSlFz3B9aZJ-XP0C2SYc"
     GROUP_CHAT_ID = "-1003247504066"
-    SESSION_COOKIE = "1lmb7eero2g23hupoi5a5os951"
-    TARGET_HOST = "94.23.120.156"
+    SESSION_COOKIE = "g855aivr4ealrf28hus44ikmd0"
+    TARGET_HOST = "91.232.105.47"
     CSSTR_PARAM = "3acc348a709215e69664db0772be8876"
-    TIMESTAMP_PARAM = "1777217784456"
+    TIMESTAMP_PARAM = "1777218296552"
     TARGET_URL = f"http://{TARGET_HOST}/ints/client/res/data_smscdr.php"
 
     print("=" * 50)
