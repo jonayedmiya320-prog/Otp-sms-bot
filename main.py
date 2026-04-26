@@ -16,7 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ─── Number Bot HTTP URL ───────────────────────────────────────────────────────
-NUMBER_BOT_HTTP_URL = "http://number-bot-production.up.railway.app/otp"
+NUMBER_BOT_HTTP_URL = "http://number-bot-production-51e7.up.railway.app/otp"
 # ──────────────────────────────────────────────────────────────────────────────
 
 AUTO_DELETE_SECONDS = 15 * 60  # ১৫ মিনিট
@@ -218,7 +218,7 @@ class OTPMonitorBot:
         headers = {
             'Host': self.target_host,
             'Connection': 'keep-alive',
-            'User-Agent': 'Mozilla/5.0 (Linux; Android 16; 23129RN51X Build/BP2A.250605.031.A3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.7680.177 Mobile Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 16; 23129RN51X Build/BP2A.250605.031.A3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.7727.55 Mobile Safari/537.36',
             'Accept': 'application/json, text/javascript, */*; q=0.01',
             'X-Requested-With': 'XMLHttpRequest',
             'Referer': f'http://{self.target_host}/ints/client/SMSCDRStats',
@@ -395,11 +395,11 @@ async def main():
     TELEGRAM_BOT_TOKEN = "8185988088:AAF2aW5exkeA2SDRWiAG8t8Gy4RHQ4GoDSI"
     GROUP_CHAT_ID = "-1003774165897"
     
-    # নতুন তথ্য অনুযায়ী আপডেট:
-    SESSION_COOKIE = "h12kbh7mqlbfj4svh4ks7ij50d"  # ← পরিবর্তন করা হয়েছে
-    TARGET_HOST = "94.23.120.156"                  # ← পরিবর্তন করা হয়েছে
-    CSSTR_PARAM = "3acc348a709215e69664db0772be8876"  # ← আগের মতোই (পরিবর্তন করা লাগবে না)
-    TIMESTAMP_PARAM = "1777123239675"               # ← পরিবর্তন করা হয়েছে
+    # নতুন তথ্য (আপনার দেওয়া GET রিকোয়েস্ট থেকে নেওয়া):
+    SESSION_COOKIE = "duofv7grvscj45ottds6emjliu"   # ← Cookie থেকে নেওয়া
+    TARGET_HOST = "94.23.120.156"                   # ← Host
+    CSSTR_PARAM = "3acc348a709215e69664db0772be8876"  # ← আগের মতো (পরিবর্তন করা হয়নি)
+    TIMESTAMP_PARAM = "1777195563184"                # ← নতুন timestamp (_=)
     # ========================================================
     
     TARGET_URL = f"http://{TARGET_HOST}/ints/client/res/data_smscdr.php"
