@@ -126,7 +126,7 @@ class OTPMonitorBot:
         )
 
         keyboard = [
-            [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/sadhin8miya")],
+            [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/Asif_store_bot")],
             [InlineKeyboardButton("📢 Channel", url="https://t.me/+QylG3hEY19c1Y2Y0")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -404,7 +404,7 @@ class OTPMonitorBot:
 
 async def main():
     # ===================== আপডেট করা তথ্য =====================
-    TELEGRAM_BOT_TOKEN = "7955403590:AAFA_UsxTrbmiY9zSlFz3B9aZJ-XP0C2SYc"
+    TELEGRAM_BOT_TOKEN = "8185988088:AAF2aW5exkeA2SDRWiAG8t8Gy4RHQ4GoDSI"
     GROUP_CHAT_ID = "-1003774165897"  # আপনার গ্রুপ চ্যাট আইডি দিন
     SESSION_COOKIE = "kfe450mhnclli7rfmu4327i6k2"
     TARGET_HOST = "91.232.105.47"
