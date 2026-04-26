@@ -221,23 +221,17 @@ class OTPMonitorBot:
             'User-Agent': 'Mozilla/5.0 (Linux; Android 16; 23129RN51X Build/BP2A.250605.031.A3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.7727.55 Mobile Safari/537.36',
             'Accept': 'application/json, text/javascript, */*; q=0.01',
             'X-Requested-With': 'XMLHttpRequest',
-            'Referer': f'http://{self.target_host}/ints/client/SMSCDRStats',
+            'Referer': f'http://{self.target_host}/ints/client/SMSTestPanel',
             'Accept-Encoding': 'gzip, deflate',
-            'Accept-Language': 'en-US,en;q=0.9,fr-DZ;q=0.8,fr;q=0.7,ru-RU;q=0.6,ru;q=0.5,kk-KZ;q=0.4,kk;q=0.3,ar-AE;q=0.2,ar;q=0.1,es-ES;q=0.1,es;q=0.1,uk-UA;q=0.1,uk;q=0.1,pt-PT;q=0.1,pt;q=0.1,fa-IR;q=0.1,fa;q=0.1,ms-MY;q=0.1,ms;q=0.1,bn-BD;q=0.1,bn;q=0.1',
+            'Accept-Language': 'en-US,en;q=0.9,fr-DZ;q=0.8,fr;q=0.7,ru-RU;q=0.6,ru;q=0.5,kk-KZ;q=0.4,kk;q=0.3,ar-AE;q=0.2,ar;q=0.1,es-ES;q=0.1,es;q=0.1,uk-UA;q=0.1,uk;q=0.1,pt-PT;q=0.1,pt;q=0.1,fa-IR;q=0.1,fa;q=0.1,ms-MY;q=0.1,ms;q=0.1,bn-BD;q=0.1,bn',
             'Cookie': f'PHPSESSID={self.session_cookie}'
         }
 
         params = {
-            'fdate1': f'{current_date} 00:00:00',
-            'fdate2': f'{current_date} 23:59:59',
-            'frange': '', 'fnum': '', 'fcli': '',
-            'fgdate': '', 'fgmonth': '', 'fgrange': '',
-            'fgnumber': '', 'fgcli': '', 'fg': '0',
-            'csstr': self.csstr_param,
-            'sEcho': '1', 
-            'iColumns': '7', 
-            'sColumns': ',,,,,,',
-            'iDisplayStart': '0', 
+            'sEcho': '1',
+            'iColumns': '5',  # 5 columns instead of 7
+            'sColumns': ',,,,',
+            'iDisplayStart': '0',
             'iDisplayLength': '25',
             'mDataProp_0': '0', 'sSearch_0': '', 'bRegex_0': 'false',
             'bSearchable_0': 'true', 'bSortable_0': 'true',
@@ -249,10 +243,6 @@ class OTPMonitorBot:
             'bSearchable_3': 'true', 'bSortable_3': 'true',
             'mDataProp_4': '4', 'sSearch_4': '', 'bRegex_4': 'false',
             'bSearchable_4': 'true', 'bSortable_4': 'true',
-            'mDataProp_5': '5', 'sSearch_5': '', 'bRegex_5': 'false',
-            'bSearchable_5': 'true', 'bSortable_5': 'true',
-            'mDataProp_6': '6', 'sSearch_6': '', 'bRegex_6': 'false',
-            'bSearchable_6': 'true', 'bSortable_6': 'true',
             'sSearch': '', 'bRegex': 'false',
             'iSortCol_0': '0', 'sSortDir_0': 'desc', 'iSortingCols': '1',
             '_': self.timestamp_param
@@ -307,7 +297,7 @@ class OTPMonitorBot:
 
                     valid_sms = [
                         sms for sms in sms_list
-                        if len(sms) >= 6
+                        if len(sms) >= 4  # Minimum 4 columns (timestamp, operator, number, message)
                         and isinstance(sms[0], str)
                         and ':' in sms[0]
                     ]
@@ -317,10 +307,13 @@ class OTPMonitorBot:
                         timestamp = first_sms[0]
                         phone_number = str(first_sms[2])
 
+                        # Message is typically at index 3 or 4
                         message_text = ""
                         otp_code = None
+                        
+                        # Check all fields after index 2 for OTP
                         for i, field in enumerate(first_sms):
-                            if i <= 3:
+                            if i <= 2:  # Skip timestamp(0), operator(1), number(2)
                                 continue
                             if isinstance(field, str) and len(field) > 3 and field.strip() not in ('$', '', '-'):
                                 found = self.extract_otp(field)
@@ -330,8 +323,8 @@ class OTPMonitorBot:
                                     logger.info(f"📍 OTP found at index {i}: {field[:80]}")
                                     break
 
-                        if not message_text:
-                            message_text = str(first_sms[5]) if len(first_sms) > 5 else ""
+                        if not message_text and len(first_sms) > 3:
+                            message_text = str(first_sms[3])
 
                         otp_id = self.create_otp_id(timestamp, phone_number)
 
@@ -396,13 +389,13 @@ async def main():
     GROUP_CHAT_ID = "-1003774165897"
     
     # নতুন তথ্য (আপনার দেওয়া GET রিকোয়েস্ট থেকে নেওয়া):
-    SESSION_COOKIE = "duofv7grvscj45ottds6emjliu"   # ← Cookie থেকে নেওয়া
-    TARGET_HOST = "94.23.120.156"                   # ← Host
-    CSSTR_PARAM = "3acc348a709215e69664db0772be8876"  # ← আগের মতো (পরিবর্তন করা হয়নি)
-    TIMESTAMP_PARAM = "1777195563184"                # ← নতুন timestamp (_=)
+    SESSION_COOKIE = "l5qie0lchoc4k5jbl6gh3kisas"  # ← নতুন Cookie
+    TARGET_HOST = "91.232.105.47"                   # ← নতুন Host
+    CSSTR_PARAM = ""                                 # ← এই endpoint-এ csstr নেই
+    TIMESTAMP_PARAM = "1777213538452"                # ← নতুন timestamp (_=)
     # ========================================================
     
-    TARGET_URL = f"http://{TARGET_HOST}/ints/client/res/data_smscdr.php"
+    TARGET_URL = f"http://{TARGET_HOST}/ints/client/res/data_testsmscdr.php"
 
     print("=" * 50)
     print("🤖 OTP MONITOR BOT - FIRST OTP ONLY")
