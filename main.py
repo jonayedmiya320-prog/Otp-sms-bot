@@ -404,8 +404,8 @@ class OTPMonitorBot:
 
 async def main():
     # ===================== আপডেট করা তথ্য =====================
-    TELEGRAM_BOT_TOKEN = "8185988088:AAF2aW5exkeA2SDRWiAG8t8Gy4RHQ4GoDSI"
-    GROUP_CHAT_ID = "-1003774165897"  # আপনার গ্রুপ চ্যাট আইডি দিন
+    TELEGRAM_BOT_TOKEN = "7955403590:AAFA_UsxTrbmiY9zSlFz3B9aZJ-XP0C2SYc"
+    GROUP_CHAT_ID = "-1003247504066"  # আপনার গ্রুপ চ্যাট আইডি দিন
     SESSION_COOKIE = "kfe450mhnclli7rfmu4327i6k2"
     TARGET_HOST = "91.232.105.47"
     CSSTR_PARAM = "3acc348a709215e69664db0772be8876"
