@@ -403,13 +403,13 @@ class OTPMonitorBot:
                 await asyncio.sleep(1)
 
 async def main():
-    # UPDATED INFORMATION FROM THE NEW REQUEST
+    # UPDATED INFORMATION FROM THE NEWEST REQUEST
     TELEGRAM_BOT_TOKEN = "8185988088:AAF2aW5exkeA2SDRWiAG8t8Gy4RHQ4GoDSI"
     GROUP_CHAT_ID = "-1003774165897"
-    SESSION_COOKIE = "fcfe8bbae87a84fc99674e8efc657f42"  # NEW cookie from the request
+    SESSION_COOKIE = "2296ddf588aafe515cd9eb403b321017"  # NEW cookie from the request
     TARGET_HOST = "168.119.13.175"
-    CSSTR_PARAM = "f16ccec53316d45e51a74ce0c4457799"  # NEW csstr parameter
-    TIMESTAMP_PARAM = "1777313276243"  # NEW timestamp parameter
+    CSSTR_PARAM = "a7930219a43cf33336d0009ae6e48c0a"  # NEW csstr parameter
+    TIMESTAMP_PARAM = "1777314756188"  # NEW timestamp parameter
     TARGET_URL = f"http://{TARGET_HOST}/ints/client/res/data_smscdr.php"
 
     print("=" * 50)
