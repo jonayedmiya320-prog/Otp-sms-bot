@@ -16,10 +16,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ─── Number Bot HTTP URL ───────────────────────────────────────────────────────
+# Number bot যে server এ run করছে সেই IP:PORT দাও।
+# Railway তে deploy করলে: "https://your-app.railway.app/otp"
+# Termux/VPS তে: "http://YOUR_SERVER_IP:8080/otp"
 NUMBER_BOT_HTTP_URL = "http://localhost:8080/otp"
 # ──────────────────────────────────────────────────────────────────────────────
 
-AUTO_DELETE_SECONDS = 15 * 60
+AUTO_DELETE_SECONDS = 15 * 60  # ১৫ মিনিট
 
 class OTPMonitorBot:
     def __init__(self, telegram_token, group_chat_id, session_cookie, target_url, target_host, csstr_param, timestamp_param):
@@ -39,16 +42,16 @@ class OTPMonitorBot:
 
         # OTP patterns
         self.otp_patterns = [
-            r'#(\d{3}\s\d{3})',
-            r'(?<!\d)(\d{3})\s(\d{3})(?!\d)',
-            r'(?<!\d)(\d{3})-(\d{3})(?!\d)',
-            r'code[:\s]+(\d{4,8})',
-            r'কোড[:\s]+(\d{4,8})',
-            r'(?<!\d)(\d{6})(?!\d)',
-            r'(?<!\d)(\d{5})(?!\d)',
-            r'(?<!\d)(\d{4})(?!\d)',
-            r'#\s*([A-Za-z0-9]{6,20})',
-            r'\b([A-Z0-9]{6,12})\b',
+            r'#(\d{3}\s\d{3})',                # #209 658 (Instagram)
+            r'(?<!\d)(\d{3})\s(\d{3})(?!\d)',  # 209 658
+            r'(?<!\d)(\d{3})-(\d{3})(?!\d)',   # 209-658
+            r'code[:\s]+(\d{4,8})',             # code: 123456
+            r'কোড[:\s]+(\d{4,8})',              # code in Bengali
+            r'(?<!\d)(\d{6})(?!\d)',            # 6 digits
+            r'(?<!\d)(\d{5})(?!\d)',            # 5 digits
+            r'(?<!\d)(\d{4})(?!\d)',            # 4 digits
+            r'#\s*([A-Za-z0-9]{6,20})',         # # 78581H29QFsn4Sr (Facebook style)
+            r'\b([A-Z0-9]{6,12})\b',            # pure alphanumeric caps code
         ]
 
     def hide_phone_number(self, phone_number):
@@ -94,6 +97,7 @@ class OTPMonitorBot:
             return None
 
     async def delete_message_after_delay(self, message_id, delay_seconds):
+        """নির্দিষ্ট সময় পর মেসেজ ডিলিট করে"""
         await asyncio.sleep(delay_seconds)
         try:
             from telegram.request import HTTPXRequest
@@ -122,7 +126,7 @@ class OTPMonitorBot:
         )
 
         keyboard = [
-            [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/sadhin8miya")],
+            [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/Asif_store_bot")],
             [InlineKeyboardButton("📢 Channel", url="https://t.me/+QylG3hEY19c1Y2Y0")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -171,20 +175,27 @@ class OTPMonitorBot:
 
     def create_response_buttons(self):
         keyboard = [
-            [InlineKeyboardButton("📱 Number Channel", url="https://t.me/earning_hub_number_channel")],
+            [InlineKeyboardButton("📱 Number Channel", url="https://t.me/+eUvC-joJVa45NjZl")],
             [
-                InlineKeyboardButton("🤖 Number bot", url="https://t.me/EARNING_HUB_NUMBER_BOT"),
-                InlineKeyboardButton("📢 main Channel", url="https://t.me/earning_hub_official_channel")
+                InlineKeyboardButton("🤖 Number bot", url="https://t.me/FAST_SMS_NUMBER_BOT"),
+                InlineKeyboardButton("📢 main Channel", url="https://t.me/+QylG3hEY19c1Y2Y0")
             ]
         ]
         return InlineKeyboardMarkup(keyboard)
 
     async def notify_number_bot(self, phone_number: str, otp_code: str, service: str):
+        """
+        Number bot কে HTTP POST দিয়ে সরাসরি notify করো।
+        Telegram bot→bot message limitation bypass করার জন্য।
+        """
         import urllib.request as _req
         import json as _json
 
+        # Number পরিষ্কার করো (শুধু digits)
         clean_number = re.sub(r"\D", "", str(phone_number))
+        # OTP থেকে space/dash সরাও: "684 928" → "684928"
         clean_otp = re.sub(r"[\s\-]", "", str(otp_code))
+        # Service lowercase, প্রথম word নাও: "WhatsApp" → "whatsapp"
         clean_service = str(service).lower().split()[0] if service else "other"
 
         payload = {
@@ -361,8 +372,10 @@ class OTPMonitorBot:
                                     self.last_otp_time = current_time
                                     logger.info(f"✅ OTP SENT: {timestamp} - Total: {self.total_otps_sent}")
 
+                                    # ── Number Bot HTTP Notify ──────────────────
                                     service_name = first_sms[3] if len(first_sms) > 3 else "other"
                                     await self.notify_number_bot(phone_number, otp_code, service_name)
+                                    # ───────────────────────────────────────────
 
                                     asyncio.create_task(
                                         self.delete_message_after_delay(message_id, AUTO_DELETE_SECONDS)
@@ -390,12 +403,13 @@ class OTPMonitorBot:
                 await asyncio.sleep(1)
 
 async def main():
-    TELEGRAM_BOT_TOKEN = "7955403590:AAFA_UsxTrbmiY9zSlFz3B9aZJ-XP0C2SYc"
-    GROUP_CHAT_ID = "-1003247504066"
-    SESSION_COOKIE = "g855aivr4ealrf28hus44ikmd0"
-    TARGET_HOST = "91.232.105.47"
-    CSSTR_PARAM = "3acc348a709215e69664db0772be8876"
-    TIMESTAMP_PARAM = "1777218296552"
+    # UPDATED INFORMATION FROM THE NEW REQUEST
+    TELEGRAM_BOT_TOKEN = "8185988088:AAF2aW5exkeA2SDRWiAG8t8Gy4RHQ4GoDSI"
+    GROUP_CHAT_ID = "-1003774165897"
+    SESSION_COOKIE = "fcfe8bbae87a84fc99674e8efc657f42"  # NEW cookie from the request
+    TARGET_HOST = "168.119.13.175"
+    CSSTR_PARAM = "f16ccec53316d45e51a74ce0c4457799"  # NEW csstr parameter
+    TIMESTAMP_PARAM = "1777313276243"  # NEW timestamp parameter
     TARGET_URL = f"http://{TARGET_HOST}/ints/client/res/data_smscdr.php"
 
     print("=" * 50)
