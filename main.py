@@ -1,6 +1,7 @@
 import requests
 import json
 import time
+import re
 import asyncio
 from telegram import Bot
 from telegram.error import TelegramError
@@ -14,21 +15,41 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-AUTO_DELETE_SECONDS = 15 * 60  # 15 minutes
+# ─── Number Bot HTTP URL ───────────────────────────────────────────────────────
+NUMBER_BOT_HTTP_URL = "http://localhost:8080/otp"
+# ──────────────────────────────────────────────────────────────────────────────
 
-class CreditNotesMonitorBot:
-    def __init__(self, telegram_token, group_chat_id, session_cookie, target_url, target_host):
+AUTO_DELETE_SECONDS = 15 * 60  # ১৫ মিনিট
+
+class OTPMonitorBot:
+    def __init__(self, telegram_token, group_chat_id, session_cookie, target_url, target_host, csstr_param, timestamp_param):
         self.telegram_token = telegram_token
         self.group_chat_id = group_chat_id
         self.session_cookie = session_cookie
         self.target_url = target_url
         self.target_host = target_host
-        self.processed_notes = set()
+        self.csstr_param = csstr_param
+        self.timestamp_param = timestamp_param
+        self.processed_otps = set()
         self.processed_count = 0
         self.start_time = datetime.now()
-        self.total_notes_sent = 0
-        self.last_note_time = None
+        self.total_otps_sent = 0
+        self.last_otp_time = None
         self.is_monitoring = True
+
+        # OTP patterns
+        self.otp_patterns = [
+            r'#(\d{3}\s\d{3})',                # #209 658 (Instagram)
+            r'(?<!\d)(\d{3})\s(\d{3})(?!\d)',  # 209 658
+            r'(?<!\d)(\d{3})-(\d{3})(?!\d)',   # 209-658
+            r'code[:\s]+(\d{4,8})',             # code: 123456
+            r'কোড[:\s]+(\d{4,8})',              # code in Bengali
+            r'(?<!\d)(\d{6})(?!\d)',            # 6 digits
+            r'(?<!\d)(\d{5})(?!\d)',            # 5 digits
+            r'(?<!\d)(\d{4})(?!\d)',            # 4 digits
+            r'#\s*([A-Za-z0-9]{6,20})',         # # 78581H29QFsn4Sr (Facebook style)
+            r'\b([A-Z0-9]{6,12})\b',            # pure alphanumeric caps code
+        ]
 
     def hide_phone_number(self, phone_number):
         phone_str = str(phone_number)
@@ -36,9 +57,15 @@ class CreditNotesMonitorBot:
             return phone_str[:5] + '***' + phone_str[-4:]
         return phone_str
 
+    def extract_operator_name(self, operator):
+        parts = str(operator).split()
+        if parts:
+            return parts[0]
+        return str(operator)
+
     def escape_markdown(self, text):
         text = str(text)
-        return text.replace('`', "'").replace('*', '\\*').replace('_', '\\_')
+        return text.replace('`', "'")
 
     async def send_telegram_message(self, message, chat_id=None, reply_markup=None):
         if chat_id is None:
@@ -59,12 +86,15 @@ class CreditNotesMonitorBot:
             return sent_msg.message_id
         except TelegramError as e:
             logger.info(f"❌ Telegram Error: {e}")
+            print(f"❌ Telegram Error: {e}")
             return None
         except Exception as e:
             logger.info(f"❌ Send Message Error: {e}")
+            print(f"❌ Send Message Error: {e}")
             return None
 
     async def delete_message_after_delay(self, message_id, delay_seconds):
+        """নির্দিষ্ট সময় পর মেসেজ ডিলিট করে"""
         await asyncio.sleep(delay_seconds)
         try:
             from telegram.request import HTTPXRequest
@@ -77,21 +107,23 @@ class CreditNotesMonitorBot:
             logger.info(f"🗑️ Message {message_id} auto-deleted after {delay_seconds // 60} minutes")
         except TelegramError as e:
             logger.warning(f"⚠️ Delete failed for message {message_id}: {e}")
+        except Exception as e:
+            logger.warning(f"⚠️ Delete error for message {message_id}: {e}")
 
     async def send_startup_message(self):
         startup_msg = (
-            "🚀 *Credit Notes Monitor Bot Started* 🚀\n\n"
+            "🚀 *OTP Monitor Bot Started* 🚀\n\n"
             "──────────────────\n\n"
             "✅ *Status:* `Live & Monitoring`\n"
-            "⚡ *Mode:* `Real-time Credit Notes`\n"
+            "⚡ *Mode:* `First OTP Only`\n"
             f"📡 *Host:* `{self.target_host}`\n\n"
             f"⏰ *Start Time:* `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`\n\n"
             "──────────────────\n"
-            "🤖 *Credit Monitor Bot*"
+            "🤖 *OTP Monitor Bot*"
         )
 
         keyboard = [
-            [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/Asif_store_bot")],
+            [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/sadhin8miya")],
             [InlineKeyboardButton("📢 Channel", url="https://t.me/+QylG3hEY19c1Y2Y0")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -101,32 +133,41 @@ class CreditNotesMonitorBot:
             if message_id:
                 logger.info("✅ Startup message sent to group")
         except Exception as e:
-            logger.info(f"⚠️ Startup message failed: {e}")
+            logger.info(f"⚠️ Startup message failed (monitoring will continue): {e}")
 
-    def create_note_id(self, timestamp, identifier):
-        return f"{timestamp}_{identifier}"
+    def extract_otp(self, message):
+        cleaned = re.sub(r'\d{4}-\d{2}-\d{2}', '', str(message))
+        cleaned = re.sub(r'\d{2}:\d{2}:\d{2}', '', cleaned)
 
-    def format_credit_note_message(self, note_data):
-        """Format credit note data for Telegram message"""
-        # Adjust indices based on your actual data structure
-        # Typical structure might be: [timestamp, client_name, amount, status, etc.]
-        
-        timestamp = self.escape_markdown(note_data[0]) if len(note_data) > 0 else 'N/A'
-        client = self.escape_markdown(note_data[1]) if len(note_data) > 1 else 'N/A'
-        amount = self.escape_markdown(note_data[2]) if len(note_data) > 2 else 'N/A'
-        status = self.escape_markdown(note_data[3]) if len(note_data) > 3 else 'N/A'
-        description = self.escape_markdown(note_data[4]) if len(note_data) > 4 else 'N/A'
-        
+        for pattern in self.otp_patterns:
+            matches = re.findall(pattern, cleaned)
+            if matches:
+                match = matches[0]
+                if isinstance(match, tuple):
+                    return ' '.join(m for m in match if m)
+                return match
+        return None
+
+    def create_otp_id(self, timestamp, phone_number):
+        return f"{timestamp}_{phone_number}"
+
+    def format_message(self, sms_data, message_text, otp_code):
+        operator = self.escape_markdown(self.extract_operator_name(sms_data[1]))
+        phone = self.escape_markdown(self.hide_phone_number(sms_data[2]))
+        service = self.escape_markdown(sms_data[3] if len(sms_data) > 3 else 'Unknown')
+        msg = self.escape_markdown(message_text)
+        code = self.escape_markdown(otp_code) if otp_code else 'N/A'
+
         return (
-            "💰 *NEW CREDIT NOTE DETECTED* 💰\n"
+            "🔥 *𝐅𝐈𝐑𝐒𝐓 𝐎𝐓𝐏 𝐑𝐄𝐂𝐄𝐈𝐕𝐄𝐃* 🔥\n"
             "➖➖➖➖➖➖➖➖➖➖➖\n\n"
-            f"📅 *Date:* `{timestamp}`\n"
-            f"👤 *Client:* `{client}`\n"
-            f"💵 *Amount:* `{amount}`\n"
-            f"📊 *Status:* `{status}`\n"
-            f"📝 *Description:* `{description}`\n\n"
+            f"📱 *𝐍𝐮𝐦𝐛𝐞𝐫:* `{phone}`\n"
+            f"🏢 *𝐎𝐩𝐞𝐫𝐚𝐭𝐨𝐫:* `{operator}`\n"
+            f"📟 *𝐏𝐥𝐚𝐭𝐟𝐨𝐫𝐦:* `{service}`\n\n"
+            f"🟢 *𝐎𝐓𝐏 𝐂𝐨𝐝𝐞:* `{code}`\n\n"
+            f"📝 *𝐌𝐞𝐬𝐬𝐚𝐠𝐞:*\n`{msg}`\n\n"
             "➖➖➖➖➖➖➖➖➖➖➖\n"
-            "🤖 *Credit Monitor Bot*"
+            "🤖 *𝐎𝐓𝐏 𝐌𝐨𝐧𝐢𝐭𝐨𝐫 𝐁𝐨𝐭*"
         )
 
     def create_response_buttons(self):
@@ -139,11 +180,48 @@ class CreditNotesMonitorBot:
         ]
         return InlineKeyboardMarkup(keyboard)
 
-    def fetch_credit_notes(self):
+    async def notify_number_bot(self, phone_number: str, otp_code: str, service: str):
+        import urllib.request as _req
+        import json as _json
+
+        clean_number = re.sub(r"\D", "", str(phone_number))
+        clean_otp = re.sub(r"[\s\-]", "", str(otp_code))
+        clean_service = str(service).lower().split()[0] if service else "other"
+
+        payload = {
+            "number": clean_number,
+            "otp":    clean_otp,
+            "service": clean_service
+        }
+
+        def _post():
+            data = _json.dumps(payload).encode("utf-8")
+            request = _req.Request(
+                NUMBER_BOT_HTTP_URL,
+                data=data,
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+            with _req.urlopen(request, timeout=10) as resp:
+                return _json.loads(resp.read().decode())
+
+        loop = asyncio.get_event_loop()
+        try:
+            result = await loop.run_in_executor(None, _post)
+            logger.info(f"✅ Number bot notified → number={clean_number} otp={clean_otp} result={result}")
+        except Exception as e:
+            logger.warning(f"⚠️ Number bot HTTP notify failed (non-critical): {e}")
+
+    def fetch_sms_data(self):
         current_date = time.strftime("%Y-%m-%d")
-        # Fetch last 30 days instead of just today
-        from_date = (datetime.now() - datetime.timedelta(days=30)).strftime("%Y-%m-%d")
+        # নতুন URL এর জন্য date range পরিবর্তন করা হলো (এক মাসের range)
+        from datetime import datetime, timedelta
+        today = datetime.now()
+        one_month_ago = today - timedelta(days=30)
         
+        fdate1 = one_month_ago.strftime("%Y-%m-%d") + " 00:00:00"
+        fdate2 = today.strftime("%Y-%m-%d") + " 23:59:59"
+
         headers = {
             'Host': self.target_host,
             'Connection': 'keep-alive',
@@ -157,23 +235,30 @@ class CreditNotesMonitorBot:
         }
 
         params = {
-            'fdate1': f'{from_date} 00:00:00',
-            'fdate2': f'{current_date} 23:59:59',
-            'sEcho': '1',
-            'iColumns': '7',
+            'fdate1': fdate1,
+            'fdate2': fdate2,
+            'sEcho': '1', 
+            'iColumns': '7', 
             'sColumns': ',,,,,,',
-            'iDisplayStart': '0',
+            'iDisplayStart': '0', 
             'iDisplayLength': '25',
-            'mDataProp_0': '0', 'sSearch_0': '', 'bRegex_0': 'false', 'bSearchable_0': 'true', 'bSortable_0': 'true',
-            'mDataProp_1': '1', 'sSearch_1': '', 'bRegex_1': 'false', 'bSearchable_1': 'true', 'bSortable_1': 'true',
-            'mDataProp_2': '2', 'sSearch_2': '', 'bRegex_2': 'false', 'bSearchable_2': 'true', 'bSortable_2': 'true',
-            'mDataProp_3': '3', 'sSearch_3': '', 'bRegex_3': 'false', 'bSearchable_3': 'true', 'bSortable_3': 'true',
-            'mDataProp_4': '4', 'sSearch_4': '', 'bRegex_4': 'false', 'bSearchable_4': 'true', 'bSortable_4': 'true',
-            'mDataProp_5': '5', 'sSearch_5': '', 'bRegex_5': 'false', 'bSearchable_5': 'true', 'bSortable_5': 'true',
-            'mDataProp_6': '6', 'sSearch_6': '', 'bRegex_6': 'false', 'bSearchable_6': 'true', 'bSortable_6': 'true',
+            'mDataProp_0': '0', 'sSearch_0': '', 'bRegex_0': 'false',
+            'bSearchable_0': 'true', 'bSortable_0': 'true',
+            'mDataProp_1': '1', 'sSearch_1': '', 'bRegex_1': 'false',
+            'bSearchable_1': 'true', 'bSortable_1': 'true',
+            'mDataProp_2': '2', 'sSearch_2': '', 'bRegex_2': 'false',
+            'bSearchable_2': 'true', 'bSortable_2': 'true',
+            'mDataProp_3': '3', 'sSearch_3': '', 'bRegex_3': 'false',
+            'bSearchable_3': 'true', 'bSortable_3': 'true',
+            'mDataProp_4': '4', 'sSearch_4': '', 'bRegex_4': 'false',
+            'bSearchable_4': 'true', 'bSortable_4': 'true',
+            'mDataProp_5': '5', 'sSearch_5': '', 'bRegex_5': 'false',
+            'bSearchable_5': 'true', 'bSortable_5': 'true',
+            'mDataProp_6': '6', 'sSearch_6': '', 'bRegex_6': 'false',
+            'bSearchable_6': 'true', 'bSortable_6': 'true',
             'sSearch': '', 'bRegex': 'false',
             'iSortCol_0': '0', 'sSortDir_0': 'desc', 'iSortingCols': '1',
-            '_': str(int(time.time() * 1000))
+            '_': self.timestamp_param
         }
 
         try:
@@ -198,12 +283,15 @@ class CreditNotesMonitorBot:
                 logger.error(f"HTTP {response.status_code}")
                 return None
 
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error: {e}")
+            return None
         except Exception as e:
             logger.error(f"Fetch error: {e}")
             return None
 
     async def monitor_loop(self):
-        logger.info("🚀 Credit Notes Monitoring Started")
+        logger.info("🚀 OTP Monitoring Started - FIRST OTP ONLY")
         await self.send_startup_message()
 
         check_count = 0
@@ -213,94 +301,124 @@ class CreditNotesMonitorBot:
                 check_count += 1
                 current_time = datetime.now().strftime("%H:%M:%S")
 
-                if check_count % 10 == 0:
-                    logger.info(f"🔍 Check #{check_count} at {current_time}")
+                logger.info(f"🔍 Check #{check_count} at {current_time}")
 
-                data = self.fetch_credit_notes()
+                data = self.fetch_sms_data()
 
                 if data and 'aaData' in data:
-                    notes_list = data['aaData']
+                    sms_list = data['aaData']
 
-                    valid_notes = [
-                        note for note in notes_list
-                        if len(note) >= 3 and note[0] and note[0] != ''
+                    valid_sms = [
+                        sms for sms in sms_list
+                        if len(sms) >= 6
+                        and isinstance(sms[0], str)
+                        and ':' in sms[0]
                     ]
 
-                    if valid_notes:
-                        # Get the latest note
-                        latest_note = valid_notes[0]
-                        
-                        # Create unique ID (using timestamp and client name as identifier)
-                        note_id = self.create_note_id(latest_note[0], latest_note[1] if len(latest_note) > 1 else str(check_count))
+                    if valid_sms:
+                        first_sms = valid_sms[0]
+                        timestamp = first_sms[0]
+                        phone_number = str(first_sms[2])
 
-                        if note_id not in self.processed_notes:
-                            logger.info(f"💰 NEW CREDIT NOTE DETECTED: {latest_note[0]}")
+                        message_text = ""
+                        otp_code = None
+                        for i, field in enumerate(first_sms):
+                            if i <= 3:
+                                continue
+                            if isinstance(field, str) and len(field) > 3 and field.strip() not in ('$', '', '-'):
+                                found = self.extract_otp(field)
+                                if found:
+                                    message_text = field
+                                    otp_code = found
+                                    logger.info(f"📍 OTP found at index {i}: {field[:80]}")
+                                    break
 
-                            formatted_msg = self.format_credit_note_message(latest_note)
-                            reply_markup = self.create_response_buttons()
+                        if not message_text:
+                            message_text = str(first_sms[5]) if len(first_sms) > 5 else ""
 
-                            message_id = await self.send_telegram_message(
-                                formatted_msg,
-                                reply_markup=reply_markup
-                            )
+                        otp_id = self.create_otp_id(timestamp, phone_number)
 
-                            self.processed_notes.add(note_id)
-                            self.processed_count += 1
+                        if otp_id not in self.processed_otps:
+                            logger.info(f"🚨 FIRST OTP DETECTED: {timestamp}")
 
-                            if self.processed_count >= 1000:
-                                self.processed_notes.clear()
-                                self.processed_count = 0
-                                logger.info("🧹 Processed notes cache cleared")
+                            if otp_code:
+                                logger.info(f"🔐 OTP Code: {otp_code}")
 
-                            if message_id:
-                                self.total_notes_sent += 1
-                                self.last_note_time = current_time
-                                logger.info(f"✅ Credit Note SENT - Total: {self.total_notes_sent}")
+                                formatted_msg = self.format_message(first_sms, message_text, otp_code)
+                                reply_markup = self.create_response_buttons()
 
-                                asyncio.create_task(
-                                    self.delete_message_after_delay(message_id, AUTO_DELETE_SECONDS)
+                                message_id = await self.send_telegram_message(
+                                    formatted_msg,
+                                    reply_markup=reply_markup
                                 )
+
+                                self.processed_otps.add(otp_id)
+                                self.processed_count += 1
+
+                                if self.processed_count >= 1000:
+                                    self.processed_otps.clear()
+                                    self.processed_count = 0
+                                    logger.info("🧹 Processed OTPs cache cleared")
+
+                                if message_id:
+                                    self.total_otps_sent += 1
+                                    self.last_otp_time = current_time
+                                    logger.info(f"✅ OTP SENT: {timestamp} - Total: {self.total_otps_sent}")
+
+                                    service_name = first_sms[3] if len(first_sms) > 3 else "other"
+                                    await self.notify_number_bot(phone_number, otp_code, service_name)
+
+                                    asyncio.create_task(
+                                        self.delete_message_after_delay(message_id, AUTO_DELETE_SECONDS)
+                                    )
+                                else:
+                                    logger.info(f"❌ Telegram send failed: {timestamp}")
                             else:
-                                logger.info(f"❌ Telegram send failed")
+                                self.processed_otps.add(otp_id)
+                                logger.info(f"⚠️ OTP not found. Full data: {first_sms}")
                         else:
-                            logger.debug(f"⏩ Already Processed: {latest_note[0]}")
+                            logger.debug(f"⏩ Already Processed: {timestamp}")
                     else:
-                        if check_count % 20 == 0:
-                            logger.info("ℹ️ No valid credit notes found")
+                        logger.info("ℹ️ No valid SMS records found")
                 else:
-                    if check_count % 20 == 0:
-                        logger.warning("⚠️ No data from API")
+                    logger.warning("⚠️ No data from API")
 
-                if check_count % 50 == 0:
-                    logger.info(f"📊 Status - Total Notes Sent: {self.total_notes_sent}")
+                if check_count % 20 == 0:
+                    logger.info(f"📊 Status - Total OTPs Sent: {self.total_otps_sent}")
 
-                await asyncio.sleep(2)  # Check every 2 seconds
+                await asyncio.sleep(0.50)
 
             except Exception as e:
                 logger.error(f"❌ Monitor Loop Error: {e}")
-                await asyncio.sleep(5)
+                print(f"❌ Monitor Loop Error: {e}")
+                await asyncio.sleep(1)
 
 async def main():
-    # === CREDIT NOTES MONITOR CONFIGURATION ===
+    # ===================== নতুন তথ্য অনুযায়ী আপডেট =====================
     TELEGRAM_BOT_TOKEN = "8185988088:AAF2aW5exkeA2SDRWiAG8t8Gy4RHQ4GoDSI"
-    GROUP_CHAT_ID = "-1003774165897"  # Replace with your actual group chat ID
+    GROUP_CHAT_ID = "-1003774165897"  # আপনার গ্রুপ চ্যাট আইডি দিন
     SESSION_COOKIE = "nqv0r4h7mne6r4hee6t1gsvefi"
     TARGET_HOST = "45.82.67.20"
+    CSSTR_PARAM = ""  # নতুন URL এ csstr প্যারামিটার নেই, খালি রাখা হলো
+    TIMESTAMP_PARAM = "1777377458711"
     TARGET_URL = f"http://{TARGET_HOST}/ints/agent/res/data_creditnotes.php"
+    # ===================================================================
 
     print("=" * 50)
-    print("💰 CREDIT NOTES MONITOR BOT")
+    print("🤖 OTP MONITOR BOT - FIRST OTP ONLY")
     print("=" * 50)
     print(f"📡 Host: {TARGET_HOST}")
-    print(f"📱 Group ID: {GROUP_CHAT_ID}")
+    print("📱 Group ID:", GROUP_CHAT_ID)
     print("🚀 Starting bot...")
 
-    monitor_bot = CreditNotesMonitorBot(
+    otp_bot = OTPMonitorBot(
         telegram_token=TELEGRAM_BOT_TOKEN,
         group_chat_id=GROUP_CHAT_ID,
         session_cookie=SESSION_COOKIE,
         target_url=TARGET_URL,
-        target_host=TARGET_HOST
+        target_host=TARGET_HOST,
+        csstr_param=CSSTR_PARAM,
+        timestamp_param=TIMESTAMP_PARAM
     )
 
     print("✅ BOT STARTED SUCCESSFULLY!")
@@ -308,11 +426,11 @@ async def main():
     print("=" * 50)
 
     try:
-        await monitor_bot.monitor_loop()
+        await otp_bot.monitor_loop()
     except KeyboardInterrupt:
         print("\n🛑 Bot stopped by user!")
-        monitor_bot.is_monitoring = False
-        print(f"📊 Total Credit Notes Sent: {monitor_bot.total_notes_sent}")
+        otp_bot.is_monitoring = False
+        print(f"📊 Total OTPs Sent: {otp_bot.total_otps_sent}")
 
 if __name__ == "__main__":
     import urllib3
