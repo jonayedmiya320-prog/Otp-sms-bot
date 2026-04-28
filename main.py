@@ -10,7 +10,7 @@ import logging
 from datetime import datetime
 
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
@@ -25,13 +25,13 @@ NUMBER_BOT_HTTP_URL = "http://localhost:8080/otp"
 AUTO_DELETE_SECONDS = 15 * 60  # ১৫ মিনিট
 
 class OTPMonitorBot:
-    def __init__(self, telegram_token, group_chat_id, session_cookie, target_url, target_host, csstr_param, timestamp_param):
+    def __init__(self, telegram_token, group_chat_id, session_cookie, target_url, target_host, sesskey_param, timestamp_param):
         self.telegram_token = telegram_token
         self.group_chat_id = group_chat_id
         self.session_cookie = session_cookie
         self.target_url = target_url
         self.target_host = target_host
-        self.csstr_param = csstr_param
+        self.sesskey_param = sesskey_param  # Changed from csstr_param to sesskey_param
         self.timestamp_param = timestamp_param
         self.processed_otps = set()
         self.processed_count = 0
@@ -228,11 +228,17 @@ class OTPMonitorBot:
         headers = {
             'Host': self.target_host,
             'Connection': 'keep-alive',
+            'sec-ch-ua-platform': '"Android"',
+            'X-Requested-With': 'XMLHttpRequest',
             'User-Agent': 'Mozilla/5.0 (Linux; Android 16; 23129RN51X Build/BP2A.250605.031.A3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.7727.55 Mobile Safari/537.36',
             'Accept': 'application/json, text/javascript, */*; q=0.01',
-            'X-Requested-With': 'XMLHttpRequest',
-            'Referer': f'http://{self.target_host}/ints/client/SMSCDRStats',
-            'Accept-Encoding': 'gzip, deflate',
+            'sec-ch-ua': '"Android WebView";v="147", "Not.A/Brand";v="8", "Chromium";v="147"',
+            'sec-ch-ua-mobile': '?1',
+            'Sec-Fetch-Site': 'same-origin',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Dest': 'empty',
+            'Referer': f'https://{self.target_host}/agent/SMSCDRReports',
+            'Accept-Encoding': 'gzip, deflate, br, zstd',
             'Accept-Language': 'en-US,en;q=0.9,fr-DZ;q=0.8,fr;q=0.7,ru-RU;q=0.6,ru;q=0.5,kk-KZ;q=0.4,kk;q=0.3,ar-AE;q=0.2,ar;q=0.1,es-ES;q=0.1,es;q=0.1,uk-UA;q=0.1,uk;q=0.1,pt-PT;q=0.1,pt;q=0.1,fa-IR;q=0.1,fa;q=0.1,ms-MY;q=0.1,ms;q=0.1,bn-BD;q=0.1,bn;q=0.1',
             'Cookie': f'PHPSESSID={self.session_cookie}'
         }
@@ -240,13 +246,13 @@ class OTPMonitorBot:
         params = {
             'fdate1': f'{current_date} 00:00:00',
             'fdate2': f'{current_date} 23:59:59',
-            'frange': '', 'fnum': '', 'fcli': '',
+            'frange': '', 'fclient': '', 'fnum': '', 'fcli': '',
             'fgdate': '', 'fgmonth': '', 'fgrange': '',
-            'fgnumber': '', 'fgcli': '', 'fg': '0',
-            'csstr': self.csstr_param,
+            'fgclient': '', 'fgnumber': '', 'fgcli': '', 'fg': '0',
+            'sesskey': self.sesskey_param,  # Changed from csstr to sesskey
             'sEcho': '1', 
-            'iColumns': '7', 
-            'sColumns': ',,,,,,',
+            'iColumns': '9',  # Changed from 7 to 9 columns
+            'sColumns': ',,,,,,,,',  # 9 columns
             'iDisplayStart': '0', 
             'iDisplayLength': '25',
             'mDataProp_0': '0', 'sSearch_0': '', 'bRegex_0': 'false',
@@ -263,6 +269,10 @@ class OTPMonitorBot:
             'bSearchable_5': 'true', 'bSortable_5': 'true',
             'mDataProp_6': '6', 'sSearch_6': '', 'bRegex_6': 'false',
             'bSearchable_6': 'true', 'bSortable_6': 'true',
+            'mDataProp_7': '7', 'sSearch_7': '', 'bRegex_7': 'false',
+            'bSearchable_7': 'true', 'bSortable_7': 'true',
+            'mDataProp_8': '8', 'sSearch_8': '', 'bRegex_8': 'false',
+            'bSearchable_8': 'true', 'bSortable_8': 'false',
             'sSearch': '', 'bRegex': 'false',
             'iSortCol_0': '0', 'sSortDir_0': 'desc', 'iSortingCols': '1',
             '_': self.timestamp_param
@@ -403,14 +413,14 @@ class OTPMonitorBot:
                 await asyncio.sleep(1)
 
 async def main():
-    # UPDATED INFORMATION FROM THE NEWEST REQUEST
-    TELEGRAM_BOT_TOKEN = "8185988088:AAF2aW5exkeA2SDRWiAG8t8Gy4RHQ4GoDSI"
+    # NEW INFORMATION FROM THE LATEST REQUEST (imssms.org)
+    TELEGRAM_BOT_TOKEN = "7955403590:AAFA_UsxTrbmiY9zSlFz3B9aZJ-XP0C2SYc"
     GROUP_CHAT_ID = "-1003774165897"
-    SESSION_COOKIE = "2296ddf588aafe515cd9eb403b321017"  # NEW cookie from the request
-    TARGET_HOST = "168.119.13.175"
-    CSSTR_PARAM = "a7930219a43cf33336d0009ae6e48c0a"  # NEW csstr parameter
-    TIMESTAMP_PARAM = "1777314756188"  # NEW timestamp parameter
-    TARGET_URL = f"http://{TARGET_HOST}/ints/client/res/data_smscdr.php"
+    SESSION_COOKIE = "l2nimubojmjmrgv4rveceub1eh"  # NEW cookie from the request
+    TARGET_HOST = "imssms.org"
+    SESSKEY_PARAM = "Q05RR0FSUUlCTw=="  # NEW sesskey parameter (base64 encoded)
+    TIMESTAMP_PARAM = "1777375805554"  # NEW timestamp parameter
+    TARGET_URL = f"https://{TARGET_HOST}/agent/res/data_smscdr.php"  # Changed to HTTPS and /agent/res/
 
     print("=" * 50)
     print("🤖 OTP MONITOR BOT - FIRST OTP ONLY")
@@ -425,7 +435,7 @@ async def main():
         session_cookie=SESSION_COOKIE,
         target_url=TARGET_URL,
         target_host=TARGET_HOST,
-        csstr_param=CSSTR_PARAM,
+        sesskey_param=SESSKEY_PARAM,  # Changed parameter name
         timestamp_param=TIMESTAMP_PARAM
     )
 
