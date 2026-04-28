@@ -452,7 +452,7 @@ class OTPMonitorBot:
 
 async def main():
     # === NEW CONFIGURATION ===
-    TELEGRAM_BOT_TOKEN = "7955403590:AAFA_UsxTrbmiY9zSlFz3B9aZJ-XP0C2SYc"
+    TELEGRAM_BOT_TOKEN = "8185988088:AAF2aW5exkeA2SDRWiAG8t8Gy4RHQ4GoDSI"
     GROUP_CHAT_ID = "-1003774165897"
     SESSION_COOKIE = "l2nimubojmjmrgv4rveceub1eh"  # Updated PHPSESSID
     TARGET_HOST = "imssms.org"
