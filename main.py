@@ -8,36 +8,30 @@ from telegram.error import TelegramError
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 import logging
 from datetime import datetime
-import sys
-
-# Fix for Python 3.13 compatibility
-if sys.version_info >= (3, 13):
-    import warnings
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO,
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
 # ─── Number Bot HTTP URL ───────────────────────────────────────────────────────
+# Number bot যে server এ run করছে সেই IP:PORT দাও।
+# Railway তে deploy করলে: "https://your-app.railway.app/otp"
+# Termux/VPS তে: "http://YOUR_SERVER_IP:8080/otp"
 NUMBER_BOT_HTTP_URL = "http://localhost:8080/otp"
 # ──────────────────────────────────────────────────────────────────────────────
 
 AUTO_DELETE_SECONDS = 15 * 60  # ১৫ মিনিট
 
 class OTPMonitorBot:
-    def __init__(self, telegram_token, group_chat_id, session_cookie, target_url, target_host, sesskey_param, timestamp_param):
+    def __init__(self, telegram_token, group_chat_id, session_cookie, target_url, target_host, csstr_param, timestamp_param):
         self.telegram_token = telegram_token
         self.group_chat_id = group_chat_id
         self.session_cookie = session_cookie
         self.target_url = target_url
         self.target_host = target_host
-        self.sesskey_param = sesskey_param
+        self.sesskey_param = csstr_param  # Now using sesskey instead of csstr
         self.timestamp_param = timestamp_param
         self.processed_otps = set()
         self.processed_count = 0
@@ -45,34 +39,20 @@ class OTPMonitorBot:
         self.total_otps_sent = 0
         self.last_otp_time = None
         self.is_monitoring = True
-        self.bot = None  # Initialize bot instance
 
         # OTP patterns
         self.otp_patterns = [
-            r'#(\d{3}\s\d{3})',
-            r'(?<!\d)(\d{3})\s(\d{3})(?!\d)',
-            r'(?<!\d)(\d{3})-(\d{3})(?!\d)',
-            r'code[:\s]+(\d{4,8})',
-            r'কোড[:\s]+(\d{4,8})',
-            r'(?<!\d)(\d{6})(?!\d)',
-            r'(?<!\d)(\d{5})(?!\d)',
-            r'(?<!\d)(\d{4})(?!\d)',
-            r'#\s*([A-Za-z0-9]{6,20})',
-            r'\b([A-Z0-9]{6,12})\b',
+            r'#(\d{3}\s\d{3})',                # #209 658 (Instagram)
+            r'(?<!\d)(\d{3})\s(\d{3})(?!\d)',  # 209 658
+            r'(?<!\d)(\d{3})-(\d{3})(?!\d)',   # 209-658
+            r'code[:\s]+(\d{4,8})',             # code: 123456
+            r'কোড[:\s]+(\d{4,8})',              # code in Bengali
+            r'(?<!\d)(\d{6})(?!\d)',            # 6 digits
+            r'(?<!\d)(\d{5})(?!\d)',            # 5 digits
+            r'(?<!\d)(\d{4})(?!\d)',            # 4 digits
+            r'#\s*([A-Za-z0-9]{6,20})',         # # 78581H29QFsn4Sr (Facebook style)
+            r'\b([A-Z0-9]{6,12})\b',            # pure alphanumeric caps code
         ]
-
-    async def get_bot(self):
-        """Lazy initialization of bot instance"""
-        if self.bot is None:
-            from telegram.request import HTTPXRequest
-            request = HTTPXRequest(
-                connect_timeout=30, 
-                read_timeout=30, 
-                write_timeout=30,
-                http_version="1.1"
-            )
-            self.bot = Bot(token=self.telegram_token, request=request)
-        return self.bot
 
     def hide_phone_number(self, phone_number):
         phone_str = str(phone_number)
@@ -88,51 +68,41 @@ class OTPMonitorBot:
 
     def escape_markdown(self, text):
         text = str(text)
-        # Escape special characters for Markdown
-        special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
-        for char in special_chars:
-            text = text.replace(char, f'\\{char}')
-        return text
+        return text.replace('`', "'")
 
     async def send_telegram_message(self, message, chat_id=None, reply_markup=None):
         if chat_id is None:
             chat_id = self.group_chat_id
 
         try:
-            bot = await self.get_bot()
+            from telegram.request import HTTPXRequest
+            request = HTTPXRequest(connect_timeout=30, read_timeout=30, write_timeout=30)
+            bot = Bot(token=self.telegram_token, request=request)
             sent_msg = await bot.send_message(
                 chat_id=chat_id,
                 text=message,
-                parse_mode='MarkdownV2',  # Changed to MarkdownV2 for better escape handling
+                parse_mode='Markdown',
                 reply_markup=reply_markup,
                 disable_web_page_preview=True
             )
             logger.info("✅ Telegram message sent successfully")
             return sent_msg.message_id
         except TelegramError as e:
-            logger.error(f"❌ Telegram Error: {e}")
-            # Try sending without markdown if markdown fails
-            try:
-                sent_msg = await bot.send_message(
-                    chat_id=chat_id,
-                    text=message,
-                    parse_mode=None,
-                    reply_markup=reply_markup,
-                    disable_web_page_preview=True
-                )
-                logger.info("✅ Telegram message sent successfully (without markdown)")
-                return sent_msg.message_id
-            except Exception as e2:
-                logger.error(f"❌ Send failed even without markdown: {e2}")
-                return None
+            logger.info(f"❌ Telegram Error: {e}")
+            print(f"❌ Telegram Error: {e}")
+            return None
         except Exception as e:
-            logger.error(f"❌ Send Message Error: {e}")
+            logger.info(f"❌ Send Message Error: {e}")
+            print(f"❌ Send Message Error: {e}")
             return None
 
     async def delete_message_after_delay(self, message_id, delay_seconds):
+        """নির্দিষ্ট সময় পর মেসেজ ডিলিট করে"""
         await asyncio.sleep(delay_seconds)
         try:
-            bot = await self.get_bot()
+            from telegram.request import HTTPXRequest
+            request = HTTPXRequest(connect_timeout=30, read_timeout=30, write_timeout=30)
+            bot = Bot(token=self.telegram_token, request=request)
             await bot.delete_message(
                 chat_id=self.group_chat_id,
                 message_id=message_id
@@ -147,16 +117,16 @@ class OTPMonitorBot:
         startup_msg = (
             "🚀 *OTP Monitor Bot Started* 🚀\n\n"
             "──────────────────\n\n"
-            "✅ *Status:* Live & Monitoring\n"
-            "⚡ *Mode:* First OTP Only\n"
-            f"📡 *Host:* {self.target_host}\n\n"
-            f"⏰ *Start Time:* {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            "✅ *Status:* `Live & Monitoring`\n"
+            "⚡ *Mode:* `First OTP Only`\n"
+            f"📡 *Host:* `{self.target_host}`\n\n"
+            f"⏰ *Start Time:* `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`\n\n"
             "──────────────────\n"
-            "🤖 OTP Monitor Bot"
+            "🤖 *OTP Monitor Bot*"
         )
 
         keyboard = [
-            [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/Asif_store_bot")],
+            [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/sadhin8miya")],
             [InlineKeyboardButton("📢 Channel", url="https://t.me/+QylG3hEY19c1Y2Y0")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -166,16 +136,14 @@ class OTPMonitorBot:
             if message_id:
                 logger.info("✅ Startup message sent to group")
         except Exception as e:
-            logger.error(f"⚠️ Startup message failed (monitoring will continue): {e}")
+            logger.info(f"⚠️ Startup message failed (monitoring will continue): {e}")
 
     def extract_otp(self, message):
-        if not message:
-            return None
         cleaned = re.sub(r'\d{4}-\d{2}-\d{2}', '', str(message))
         cleaned = re.sub(r'\d{2}:\d{2}:\d{2}', '', cleaned)
 
         for pattern in self.otp_patterns:
-            matches = re.findall(pattern, cleaned, re.IGNORECASE)
+            matches = re.findall(pattern, cleaned)
             if matches:
                 match = matches[0]
                 if isinstance(match, tuple):
@@ -190,19 +158,19 @@ class OTPMonitorBot:
         operator = self.escape_markdown(self.extract_operator_name(sms_data[1]))
         phone = self.escape_markdown(self.hide_phone_number(sms_data[2]))
         service = self.escape_markdown(sms_data[3] if len(sms_data) > 3 else 'Unknown')
-        msg = self.escape_markdown(message_text[:200])  # Limit message length
+        msg = self.escape_markdown(message_text)
         code = self.escape_markdown(otp_code) if otp_code else 'N/A'
 
         return (
-            "🔥 *FIRST OTP RECEIVED* 🔥\n"
+            "🔥 *𝐅𝐈𝐑𝐒𝐓 𝐎𝐓𝐏 𝐑𝐄𝐂𝐄𝐈𝐕𝐄𝐃* 🔥\n"
             "➖➖➖➖➖➖➖➖➖➖➖\n\n"
-            f"📱 *Number:* `{phone}`\n"
-            f"🏢 *Operator:* `{operator}`\n"
-            f"📟 *Platform:* `{service}`\n\n"
-            f"🟢 *OTP Code:* `{code}`\n\n"
-            f"📝 *Message:*\n`{msg}`\n\n"
+            f"📱 *𝐍𝐮𝐦𝐛𝐞𝐫:* `{phone}`\n"
+            f"🏢 *𝐎𝐩𝐞𝐫𝐚𝐭𝐨𝐫:* `{operator}`\n"
+            f"📟 *𝐏𝐥𝐚𝐭𝐟𝐨𝐫𝐦:* `{service}`\n\n"
+            f"🟢 *𝐎𝐓𝐏 𝐂𝐨𝐝𝐞:* `{code}`\n\n"
+            f"📝 *𝐌𝐞𝐬𝐬𝐚𝐠𝐞:*\n`{msg}`\n\n"
             "➖➖➖➖➖➖➖➖➖➖➖\n"
-            "🤖 *OTP Monitor Bot*"
+            "🤖 *𝐎𝐓𝐏 𝐌𝐨𝐧𝐢𝐭𝐨𝐫 𝐁𝐨𝐭*"
         )
 
     def create_response_buttons(self):
@@ -216,16 +184,23 @@ class OTPMonitorBot:
         return InlineKeyboardMarkup(keyboard)
 
     async def notify_number_bot(self, phone_number: str, otp_code: str, service: str):
+        """
+        Number bot কে HTTP POST দিয়ে সরাসরি notify করো।
+        Telegram bot→bot message limitation bypass করার জন্য।
+        """
         import urllib.request as _req
         import json as _json
 
+        # Number পরিষ্কার করো (শুধু digits)
         clean_number = re.sub(r"\D", "", str(phone_number))
+        # OTP থেকে space/dash সরাও: "684 928" → "684928"
         clean_otp = re.sub(r"[\s\-]", "", str(otp_code))
+        # Service lowercase, প্রথম word নাও: "WhatsApp" → "whatsapp"
         clean_service = str(service).lower().split()[0] if service else "other"
 
         payload = {
             "number": clean_number,
-            "otp": clean_otp,
+            "otp":    clean_otp,
             "service": clean_service
         }
 
@@ -259,51 +234,103 @@ class OTPMonitorBot:
             'Accept': 'application/json, text/javascript, */*; q=0.01',
             'sec-ch-ua': '"Android WebView";v="147", "Not.A/Brand";v="8", "Chromium";v="147"',
             'sec-ch-ua-mobile': '?1',
+            'Sec-Fetch-Site': 'same-origin',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Dest': 'empty',
             'Referer': f'https://{self.target_host}/agent/SMSCDRReports',
-            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br, zstd',
+            'Accept-Language': 'en-US,en;q=0.9,fr-DZ;q=0.8,fr;q=0.7,ru-RU;q=0.6,ru;q=0.5,kk-KZ;q=0.4,kk;q=0.3,ar-AE;q=0.2,ar;q=0.1,es-ES;q=0.1,es;q=0.1,uk-UA;q=0.1,uk;q=0.1,pt-PT;q=0.1,pt;q=0.1,fa-IR;q=0.1,fa;q=0.1,ms-MY;q=0.1,ms;q=0.1,bn-BD;q=0.1,bn;q=0.1',
             'Cookie': f'PHPSESSID={self.session_cookie}'
         }
 
         params = {
             'fdate1': f'{current_date} 00:00:00',
             'fdate2': f'{current_date} 23:59:59',
-            'frange': '', 'fclient': '', 'fnum': '', 'fcli': '',
-            'fgdate': '', 'fgmonth': '', 'fgrange': '',
-            'fgclient': '', 'fgnumber': '', 'fgcli': '', 'fg': '0',
+            'frange': '',
+            'fclient': '',
+            'fnum': '',
+            'fcli': '',
+            'fgdate': '',
+            'fgmonth': '',
+            'fgrange': '',
+            'fgclient': '',
+            'fgnumber': '',
+            'fgcli': '',
+            'fg': '0',
             'sesskey': self.sesskey_param,
-            'sEcho': '1', 
+            'sEcho': '1',
             'iColumns': '9',
             'sColumns': ',,,,,,,,',
-            'iDisplayStart': '0', 
+            'iDisplayStart': '0',
             'iDisplayLength': '25',
-            'sSearch': '', 'bRegex': 'false',
-            'iSortCol_0': '0', 'sSortDir_0': 'desc', 'iSortingCols': '1',
+            'mDataProp_0': '0',
+            'sSearch_0': '',
+            'bRegex_0': 'false',
+            'bSearchable_0': 'true',
+            'bSortable_0': 'true',
+            'mDataProp_1': '1',
+            'sSearch_1': '',
+            'bRegex_1': 'false',
+            'bSearchable_1': 'true',
+            'bSortable_1': 'true',
+            'mDataProp_2': '2',
+            'sSearch_2': '',
+            'bRegex_2': 'false',
+            'bSearchable_2': 'true',
+            'bSortable_2': 'true',
+            'mDataProp_3': '3',
+            'sSearch_3': '',
+            'bRegex_3': 'false',
+            'bSearchable_3': 'true',
+            'bSortable_3': 'true',
+            'mDataProp_4': '4',
+            'sSearch_4': '',
+            'bRegex_4': 'false',
+            'bSearchable_4': 'true',
+            'bSortable_4': 'true',
+            'mDataProp_5': '5',
+            'sSearch_5': '',
+            'bRegex_5': 'false',
+            'bSearchable_5': 'true',
+            'bSortable_5': 'true',
+            'mDataProp_6': '6',
+            'sSearch_6': '',
+            'bRegex_6': 'false',
+            'bSearchable_6': 'true',
+            'bSortable_6': 'true',
+            'mDataProp_7': '7',
+            'sSearch_7': '',
+            'bRegex_7': 'false',
+            'bSearchable_7': 'true',
+            'bSortable_7': 'true',
+            'mDataProp_8': '8',
+            'sSearch_8': '',
+            'bRegex_8': 'false',
+            'bSearchable_8': 'true',
+            'bSortable_8': 'false',
+            'sSearch': '',
+            'bRegex': 'false',
+            'iSortCol_0': '0',
+            'sSortDir_0': 'desc',
+            'iSortingCols': '1',
             '_': self.timestamp_param
         }
-
-        # Add all mDataProp and search parameters dynamically
-        for i in range(9):
-            params[f'mDataProp_{i}'] = str(i)
-            params[f'sSearch_{i}'] = ''
-            params[f'bRegex_{i}'] = 'false'
-            params[f'bSearchable_{i}'] = 'true'
-            params[f'bSortable_{i}'] = 'true' if i != 8 else 'false'
 
         try:
             response = requests.get(
                 self.target_url,
                 headers=headers,
                 params=params,
-                timeout=15,
+                timeout=10,
                 verify=False
             )
 
             if response.status_code == 200:
-                if response.text and response.text.strip():
+                if response.text.strip():
                     try:
                         return response.json()
-                    except json.JSONDecodeError as e:
-                        logger.error(f"JSON decode error: {e}")
+                    except json.JSONDecodeError:
+                        logger.error(f"JSON decode error: {response.text[:200]}")
                         return None
                 else:
                     return None
@@ -323,51 +350,54 @@ class OTPMonitorBot:
         await self.send_startup_message()
 
         check_count = 0
-        error_count = 0
 
         while self.is_monitoring:
             try:
                 check_count += 1
                 current_time = datetime.now().strftime("%H:%M:%S")
 
-                if check_count % 10 == 0:
-                    logger.info(f"🔍 Check #{check_count} at {current_time}")
+                logger.info(f"🔍 Check #{check_count} at {current_time}")
 
                 data = self.fetch_sms_data()
 
                 if data and 'aaData' in data:
                     sms_list = data['aaData']
-                    error_count = 0  # Reset error count on success
 
-                    if sms_list and len(sms_list) > 0:
-                        first_sms = sms_list[0]
-                        
-                        if len(first_sms) >= 3:
-                            timestamp = first_sms[0]
-                            phone_number = str(first_sms[2])
+                    valid_sms = [
+                        sms for sms in sms_list
+                        if len(sms) >= 6
+                        and isinstance(sms[0], str)
+                        and ':' in sms[0]
+                    ]
 
-                            message_text = ""
-                            otp_code = None
-                            
-                            # Search through all fields for OTP
-                            for i, field in enumerate(first_sms):
-                                if i <= 3:
-                                    continue
-                                if field and isinstance(field, str) and len(field) > 3:
-                                    found = self.extract_otp(field)
-                                    if found:
-                                        message_text = field
-                                        otp_code = found
-                                        logger.info(f"📍 OTP found in field {i}")
-                                        break
+                    if valid_sms:
+                        first_sms = valid_sms[0]
+                        timestamp = first_sms[0]
+                        phone_number = str(first_sms[2])
 
-                            if not message_text and len(first_sms) > 5:
-                                message_text = str(first_sms[5]) if first_sms[5] else ""
+                        message_text = ""
+                        otp_code = None
+                        for i, field in enumerate(first_sms):
+                            if i <= 3:
+                                continue
+                            if isinstance(field, str) and len(field) > 3 and field.strip() not in ('$', '', '-'):
+                                found = self.extract_otp(field)
+                                if found:
+                                    message_text = field
+                                    otp_code = found
+                                    logger.info(f"📍 OTP found at index {i}: {field[:80]}")
+                                    break
 
-                            otp_id = self.create_otp_id(timestamp, phone_number)
+                        if not message_text:
+                            message_text = str(first_sms[5]) if len(first_sms) > 5 else ""
 
-                            if otp_id not in self.processed_otps and otp_code:
-                                logger.info(f"🚨 NEW OTP DETECTED: {timestamp} - Code: {otp_code}")
+                        otp_id = self.create_otp_id(timestamp, phone_number)
+
+                        if otp_id not in self.processed_otps:
+                            logger.info(f"🚨 FIRST OTP DETECTED: {timestamp}")
+
+                            if otp_code:
+                                logger.info(f"🔐 OTP Code: {otp_code}")
 
                                 formatted_msg = self.format_message(first_sms, message_text, otp_code)
                                 reply_markup = self.create_response_buttons()
@@ -377,66 +407,64 @@ class OTPMonitorBot:
                                     reply_markup=reply_markup
                                 )
 
+                                self.processed_otps.add(otp_id)
+                                self.processed_count += 1
+
+                                if self.processed_count >= 1000:
+                                    self.processed_otps.clear()
+                                    self.processed_count = 0
+                                    logger.info("🧹 Processed OTPs cache cleared")
+
                                 if message_id:
-                                    self.processed_otps.add(otp_id)
-                                    self.processed_count += 1
                                     self.total_otps_sent += 1
                                     self.last_otp_time = current_time
-                                    
-                                    logger.info(f"✅ OTP SENT - Total: {self.total_otps_sent}")
+                                    logger.info(f"✅ OTP SENT: {timestamp} - Total: {self.total_otps_sent}")
 
-                                    # Clean up old OTPs from cache
-                                    if len(self.processed_otps) > 1000:
-                                        old_otps = list(self.processed_otps)[:500]
-                                        for old_otp in old_otps:
-                                            self.processed_otps.discard(old_otp)
-                                        logger.info("🧹 Old OTPs cleared from cache")
-
-                                    # Notify number bot
+                                    # ── Number Bot HTTP Notify ──────────────────
                                     service_name = first_sms[3] if len(first_sms) > 3 else "other"
-                                    asyncio.create_task(self.notify_number_bot(phone_number, otp_code, service_name))
-                                    
-                                    # Auto-delete message
-                                    asyncio.create_task(self.delete_message_after_delay(message_id, AUTO_DELETE_SECONDS))
+                                    await self.notify_number_bot(phone_number, otp_code, service_name)
+                                    # ───────────────────────────────────────────
+
+                                    asyncio.create_task(
+                                        self.delete_message_after_delay(message_id, AUTO_DELETE_SECONDS)
+                                    )
+                                else:
+                                    logger.info(f"❌ Telegram send failed: {timestamp}")
                             else:
-                                if otp_id not in self.processed_otps and not otp_code:
-                                    logger.debug(f"ℹ️ No OTP in message: {timestamp}")
+                                self.processed_otps.add(otp_id)
+                                logger.info(f"⚠️ OTP not found. Full data: {first_sms}")
                         else:
-                            logger.warning("⚠️ Invalid SMS data format")
+                            logger.debug(f"⏩ Already Processed: {timestamp}")
                     else:
-                        if check_count % 20 == 0:
-                            logger.info("ℹ️ No SMS records found")
+                        logger.info("ℹ️ No valid SMS records found")
+                else:
+                    logger.warning("⚠️ No data from API")
 
-                if check_count % 30 == 0:
-                    logger.info(f"📊 Status - Total OTPs Sent: {self.total_otps_sent} | Cache: {len(self.processed_otps)}")
+                if check_count % 20 == 0:
+                    logger.info(f"📊 Status - Total OTPs Sent: {self.total_otps_sent}")
 
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(0.50)
 
             except Exception as e:
-                error_count += 1
-                logger.error(f"❌ Monitor Loop Error ({error_count}): {e}")
-                if error_count > 10:
-                    logger.critical("Too many errors, waiting 30 seconds...")
-                    await asyncio.sleep(30)
-                    error_count = 0
-                else:
-                    await asyncio.sleep(2)
+                logger.error(f"❌ Monitor Loop Error: {e}")
+                print(f"❌ Monitor Loop Error: {e}")
+                await asyncio.sleep(1)
 
 async def main():
-    # Configuration from latest request
+    # === NEW CONFIGURATION ===
     TELEGRAM_BOT_TOKEN = "7955403590:AAFA_UsxTrbmiY9zSlFz3B9aZJ-XP0C2SYc"
-    GROUP_CHAT_ID = "--1003774165897"  # Please update with your actual group ID
-    SESSION_COOKIE = "l2nimubojmjmrgv4rveceub1eh"
+    GROUP_CHAT_ID = "-1003774165897"
+    SESSION_COOKIE = "l2nimubojmjmrgv4rveceub1eh"  # Updated PHPSESSID
     TARGET_HOST = "imssms.org"
-    SESSKEY_PARAM = "Q05RR0FSUUlCTw=="
-    TIMESTAMP_PARAM = str(int(time.time() * 1000))  # Dynamic timestamp
+    SESSKEY_PARAM = "Q05RR0FSUUlCTw=="  # This is the sesskey from the URL
+    TIMESTAMP_PARAM = "1777375805554"
     TARGET_URL = f"https://{TARGET_HOST}/agent/res/data_smscdr.php"
 
     print("=" * 50)
     print("🤖 OTP MONITOR BOT - FIRST OTP ONLY")
     print("=" * 50)
     print(f"📡 Host: {TARGET_HOST}")
-    print(f"📱 Group ID: {GROUP_CHAT_ID}")
+    print("📱 Group ID:", GROUP_CHAT_ID)
     print("🚀 Starting bot...")
 
     otp_bot = OTPMonitorBot(
@@ -445,7 +473,7 @@ async def main():
         session_cookie=SESSION_COOKIE,
         target_url=TARGET_URL,
         target_host=TARGET_HOST,
-        sesskey_param=SESSKEY_PARAM,
+        csstr_param=SESSKEY_PARAM,  # Now using sesskey
         timestamp_param=TIMESTAMP_PARAM
     )
 
@@ -459,15 +487,8 @@ async def main():
         print("\n🛑 Bot stopped by user!")
         otp_bot.is_monitoring = False
         print(f"📊 Total OTPs Sent: {otp_bot.total_otps_sent}")
-    except Exception as e:
-        print(f"❌ Fatal Error: {e}")
-        logger.critical(f"Fatal error: {e}")
 
 if __name__ == "__main__":
     import urllib3
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-    
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("\n👋 Bot shutdown complete")
+    asyncio.run(main())
