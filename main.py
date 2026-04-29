@@ -933,7 +933,7 @@ async def monitor_otp_loop():
                                if otp_id.split('_')[-1] > twenty_four_hours_ago}
                 
                 LOGGER.info(f"⏳ 10 সেকেন্ড অপেক্ষা... (Tracked: {len(previous_otps)} OTPs)")
-                await asyncio.sleep(10)
+                await asyncio.sleep(5)
                 
             except Exception as e:
                 LOGGER.error(f"❌ Monitoring error: {e}")
