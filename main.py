@@ -19,7 +19,7 @@ CHAT_ID = "-1003774165897"
 OWNER_ID = "7095358778"
 
 # Number Bot HTTP URL (localhost)
-NUMBER_BOT_HTTP_URL = "http://localhost:8080/otp"
+NUMBER_BOT_HTTP_URL = "http://number-bot-production.up.railway.app/otp"
 
 # Telegram Button URLs
 NUMBER_BOT_URL     = "https://t.me/FAST_SMS_NUMBER_BOT"
