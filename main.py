@@ -9,9 +9,9 @@ from datetime import datetime, timedelta
 import requests
 
 # Configuration
-MASDAR_URL = "http://91.232.105.47"
-USERNAME = "shadin"
-PASSWORD = "shadin"
+MASDAR_URL = "http://139.99.69.196"
+USERNAME = "Waleedbhai"
+PASSWORD = "Waleedbhai"
 
 # Telegram Configuration
 BOT_TOKEN = "8185988088:AAF2aW5exkeA2SDRWiAG8t8Gy4RHQ4GoDSI"
