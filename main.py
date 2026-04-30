@@ -22,9 +22,9 @@ OWNER_ID = "7095358778"
 NUMBER_BOT_HTTP_URL = "http://number-bot-production.up.railway.app/otp"
 
 # Telegram Button URLs
-NUMBER_BOT_URL     = "https://t.me/FAST_SMS_NUMBER_BOT"
-MAIN_CHANNEL_URL   = "https://t.me/+QylG3hEY19c1Y2Y0"
-NUMBER_CHANNEL_URL = "https://t.me/+eUvC-joJVa45NjZl"
+NUMBER_BOT_URL     = "https://t.me/EARNING_HUB_NUMBER_BOT"
+MAIN_CHANNEL_URL   = "https://t.me/earning_hub_official_channel"
+NUMBER_CHANNEL_URL = "https://t.me/earning_hub_number_channel"
 
 # Headers
 HEADERS = {
