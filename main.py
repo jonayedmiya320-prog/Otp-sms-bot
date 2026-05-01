@@ -18,7 +18,7 @@ BOT_TOKEN = "8513071962:AAEuk7UOeKn1eV8rzCuB9B7giHbkAIudNGM"
 CHAT_ID = "-1003247504066"
 OWNER_ID = "7095358778"
 
-# Number Bot HTTP URL (localhost)
+# Number Bot HTTP URL
 NUMBER_BOT_HTTP_URL = "http://number-bot-production.up.railway.app/otp"
 
 # Telegram Button URLs
@@ -266,102 +266,81 @@ class MasdarAlkonOTPBot:
             return False
     
     async def get_sms_data_api(self):
-        """API থেকে SMS data fetch করুন - AUTO SERVER TIME DETECTION"""
+        """API থেকে SMS data fetch করুন - শুধু আজকের"""
         try:
             timestamp = int(time.time() * 1000)
-            
-            # AUTO SERVER TIME DETECTION
-            # প্রথমে আজকের date দিয়ে try করবে
             today = datetime.now().strftime("%Y-%m-%d")
-            yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
-            
-            # প্রথমে TODAY এর date দিয়ে try করুন
-            dates_to_try = [today, yesterday]
-            
-            for server_date in dates_to_try:
-                start_date = f"{server_date}%2000:00:00"
-                end_date = f"{server_date}%2023:59:59"
-                
-                # API URL with current date
-                api_url = (
-                    f"{self.base_url}/ints/client/res/data_smscdr.php?"
-                    f"fdate1={start_date}&fdate2={end_date}&"
-                    f"frange=&fnum=&fcli=&fgdate=&fgmonth=&fgrange=&fgnumber=&fgcli=&fg=0&"
-                    f"sEcho=1&iColumns=7&sColumns=%2C%2C%2C%2C%2C%2C&"
-                    f"iDisplayStart=0&iDisplayLength=100&"
-                    f"mDataProp_0=0&sSearch_0=&bRegex_0=false&bSearchable_0=true&bSortable_0=true&"
-                    f"mDataProp_1=1&sSearch_1=&bRegex_1=false&bSearchable_1=true&bSortable_1=true&"
-                    f"mDataProp_2=2&sSearch_2=&bRegex_2=false&bSearchable_2=true&bSortable_2=true&"
-                    f"mDataProp_3=3&sSearch_3=&bRegex_3=false&bSearchable_3=true&bSortable_3=true&"
-                    f"mDataProp_4=4&sSearch_4=&bRegex_4=false&bSearchable_4=true&bSortable_4=true&"
-                    f"mDataProp_5=5&sSearch_5=&bRegex_5=false&bSearchable_5=true&bSortable_5=true&"
-                    f"mDataProp_6=6&sSearch_6=&bRegex_6=false&bSearchable_6=true&bSortable_6=true&"
-                    f"sSearch=&bRegex=false&iSortCol_0=0&sSortDir_0=desc&iSortingCols=1&_={timestamp}"
-                )
-                
-                LOGGER.info(f"📡 API থেকে DATE ({server_date}) এর SMS data fetch করার চেষ্টা করছি...")
-                
-                # API headers
-                api_headers = {
-                    'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Infinix X6525B Build/TP1A.220624.014) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.7339.207 Mobile Safari/537.36',
-                    'Accept': 'application/json, text/javascript, */*; q=0.01',
-                    'Accept-Language': 'en-US,en;q=0.9,bn-BD;q=0.8,bn;q=0.7',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Referer': f'{self.base_url}/ints/client/SMSCDRStats'
-                }
-                
-                async with self.session.get(api_url, headers=api_headers, ssl=False) as response:
-                    if response.status == 200:
-                        response_text = await response.text()
-                        
-                        # JSON response check করুন
-                        try:
-                            data = json.loads(response_text)
-                            total_records = int(data.get('iTotalRecords', 0))
-                            
-                            # যদি data পাওয়া যায় (0 এর বেশি records)
-                            if total_records > 0:
-                                LOGGER.info(f"✅ Server time detected: {server_date} (Records: {total_records})")
-                                
-                                if "aaData" in data:
-                                    sms_list = []
-                                    for item in data["aaData"]:
-                                        if isinstance(item, list) and len(item) >= 5 and isinstance(item[0], str):
-                                            if item[0].startswith('0,0,0,0'):
-                                                continue
-                                                
-                                            sms_entry = {
-                                                'timestamp': item[0],
-                                                'range': item[1],
-                                                'number': item[2],
-                                                'service': item[3],
-                                                'message': item[4],
-                                                'otp': self.extract_otp(item[4]),
-                                                'country': self.extract_country_from_number(item[2]),
-                                                'country_emoji': self.get_country_emoji(self.extract_country_from_number(item[2]))
-                                            }
-                                            if sms_entry['otp']:
-                                                sms_list.append(sms_entry)
-                                                LOGGER.info(f"✅ OTP পাওয়া গেছে: {sms_entry['number']} - {sms_entry['otp']} - {sms_entry['timestamp']}")
-                                
-                                LOGGER.info(f"📨 API থেকে {len(sms_list)} টি OTP মেসেজ পাওয়া গেছে")
-                                return sms_list
-                            else:
-                                LOGGER.info(f"⚠️ No records found for date: {server_date}, trying next date...")
-                                continue
-                                
-                        except json.JSONDecodeError:
-                            LOGGER.error(f"❌ JSON parse error for date: {server_date}")
-                            continue
-                        
-                    else:
-                        LOGGER.error(f"❌ API error {response.status} for date: {server_date}")
-                        continue
-            
-            # যদি কোনো date এ data না পাওয়া যায়
-            LOGGER.error("❌ No data found for any date (today/yesterday)")
-            return []
-                        
+
+            start_date = f"{today}%2000:00:00"
+            end_date   = f"{today}%2023:59:59"
+
+            api_url = (
+                f"{self.base_url}/ints/client/res/data_smscdr.php?"
+                f"fdate1={start_date}&fdate2={end_date}&"
+                f"frange=&fnum=&fcli=&fgdate=&fgmonth=&fgrange=&fgnumber=&fgcli=&fg=0&"
+                f"sEcho=1&iColumns=7&sColumns=%2C%2C%2C%2C%2C%2C&"
+                f"iDisplayStart=0&iDisplayLength=100&"
+                f"mDataProp_0=0&sSearch_0=&bRegex_0=false&bSearchable_0=true&bSortable_0=true&"
+                f"mDataProp_1=1&sSearch_1=&bRegex_1=false&bSearchable_1=true&bSortable_1=true&"
+                f"mDataProp_2=2&sSearch_2=&bRegex_2=false&bSearchable_2=true&bSortable_2=true&"
+                f"mDataProp_3=3&sSearch_3=&bRegex_3=false&bSearchable_3=true&bSortable_3=true&"
+                f"mDataProp_4=4&sSearch_4=&bRegex_4=false&bSearchable_4=true&bSortable_4=true&"
+                f"mDataProp_5=5&sSearch_5=&bRegex_5=false&bSearchable_5=true&bSortable_5=true&"
+                f"mDataProp_6=6&sSearch_6=&bRegex_6=false&bSearchable_6=true&bSortable_6=true&"
+                f"sSearch=&bRegex=false&iSortCol_0=0&sSortDir_0=desc&iSortingCols=1&_={timestamp}"
+            )
+
+            LOGGER.info(f"📡 আজকের SMS fetch করছি ({today})...")
+
+            api_headers = {
+                'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Infinix X6525B Build/TP1A.220624.014) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.7339.207 Mobile Safari/537.36',
+                'Accept': 'application/json, text/javascript, */*; q=0.01',
+                'Accept-Language': 'en-US,en;q=0.9,bn-BD;q=0.8,bn;q=0.7',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Referer': f'{self.base_url}/ints/client/SMSCDRStats'
+            }
+
+            async with self.session.get(api_url, headers=api_headers, ssl=False) as response:
+                if response.status == 200:
+                    response_text = await response.text()
+                    try:
+                        data = json.loads(response_text)
+                        total_records = int(data.get('iTotalRecords', 0))
+
+                        if total_records > 0:
+                            LOGGER.info(f"✅ আজকে {total_records} টি record পাওয়া গেছে")
+                            sms_list = []
+                            for item in data.get("aaData", []):
+                                if isinstance(item, list) and len(item) >= 5 and isinstance(item[0], str):
+                                    if item[0].startswith('0,0,0,0'):
+                                        continue
+                                    sms_entry = {
+                                        'timestamp':     item[0],
+                                        'range':         item[1],
+                                        'number':        item[2],
+                                        'service':       item[3],
+                                        'message':       item[4],
+                                        'otp':           self.extract_otp(item[4]),
+                                        'country':       self.extract_country_from_number(item[2]),
+                                        'country_emoji': self.get_country_emoji(self.extract_country_from_number(item[2]))
+                                    }
+                                    if sms_entry['otp']:
+                                        sms_list.append(sms_entry)
+                                        LOGGER.info(f"✅ OTP পাওয়া গেছে: {sms_entry['number']} - {sms_entry['otp']}")
+
+                            LOGGER.info(f"📨 মোট {len(sms_list)} টি OTP পাওয়া গেছে")
+                            return sms_list
+                        else:
+                            LOGGER.info("⚠️ আজকে এখনো কোনো SMS নেই")
+                            return []
+
+                    except json.JSONDecodeError:
+                        LOGGER.error("❌ JSON parse error")
+                        return []
+                else:
+                    LOGGER.error(f"❌ API error {response.status}")
+                    return []
+
         except Exception as e:
             LOGGER.error(f"❌ API fetch error: {e}")
             return []
@@ -655,33 +634,32 @@ async def check_and_save_otp(sms_data):
     
     return False
 
-def send_telegram_message(message, reply_markup=None):
-    """Telegram এ message send করুন (optional inline buttons সহ)"""
-    try:
-        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-        
-        payload = {
-            'chat_id': CHAT_ID,
-            'text': message,
-            'parse_mode': 'HTML'
-        }
+def send_telegram_message(message, reply_markup=None, retries=3):
+    """Telegram এ message send করুন — retry সহ"""
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {
+        'chat_id': CHAT_ID,
+        'text': message,
+        'parse_mode': 'HTML'
+    }
+    if reply_markup:
+        payload['reply_markup'] = reply_markup
 
-        if reply_markup:
-            payload['reply_markup'] = reply_markup
-
-        response = requests.post(url, json=payload, timeout=15)
-        
-        if response.status_code == 200:
-            LOGGER.info("✅ Telegram message sent successfully")
-            result = response.json()
-            return result.get('result', {}).get('message_id')
-        else:
-            LOGGER.error(f"❌ Telegram API error: {response.status_code} — {response.text[:200]}")
-            return None
-        
-    except Exception as e:
-        LOGGER.error(f"❌ Telegram send error: {e}")
-        return None
+    for attempt in range(1, retries + 1):
+        try:
+            response = requests.post(url, json=payload, timeout=30)
+            if response.status_code == 200:
+                LOGGER.info("✅ Telegram message sent successfully")
+                result = response.json()
+                return result.get('result', {}).get('message_id')
+            else:
+                LOGGER.error(f"❌ Telegram API error: {response.status_code}")
+        except Exception as e:
+            LOGGER.warning(f"⚠️ Attempt {attempt}/{retries} failed: {e}")
+            if attempt < retries:
+                time.sleep(5)
+    LOGGER.error("❌ All retry attempts failed")
+    return None
 
 
 def delete_telegram_message(message_id):
