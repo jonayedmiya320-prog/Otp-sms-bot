@@ -682,14 +682,35 @@ async def check_and_save_otp(sms_data):
     
     return False
 
+async def send_telegram_message_async(message, reply_markup=None, retries=3):
+    """Non-blocking Telegram message send — aiohttp দিয়ে"""
+    url     = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {'chat_id': CHAT_ID, 'text': message, 'parse_mode': 'HTML'}
+    if reply_markup:
+        payload['reply_markup'] = reply_markup
+
+    for attempt in range(1, retries + 1):
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                    if resp.status == 200:
+                        result = await resp.json()
+                        LOGGER.info("✅ Telegram message sent successfully")
+                        return result.get('result', {}).get('message_id')
+                    else:
+                        text = await resp.text()
+                        LOGGER.error(f"❌ Telegram API error: {resp.status} — {text[:100]}")
+        except Exception as e:
+            LOGGER.warning(f"⚠️ Attempt {attempt}/{retries} failed: {e}")
+            if attempt < retries:
+                await asyncio.sleep(3)
+    LOGGER.error("❌ All retry attempts failed")
+    return None
+
 def send_telegram_message(message, reply_markup=None, retries=3):
-    """Telegram এ message send করুন — retry সহ"""
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {
-        'chat_id': CHAT_ID,
-        'text': message,
-        'parse_mode': 'HTML'
-    }
+    """Sync wrapper — পুরনো code এর জন্য (start alert ইত্যাদি)"""
+    url     = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {'chat_id': CHAT_ID, 'text': message, 'parse_mode': 'HTML'}
     if reply_markup:
         payload['reply_markup'] = reply_markup
 
@@ -705,7 +726,7 @@ def send_telegram_message(message, reply_markup=None, retries=3):
         except Exception as e:
             LOGGER.warning(f"⚠️ Attempt {attempt}/{retries} failed: {e}")
             if attempt < retries:
-                time.sleep(5)
+                time.sleep(3)
     LOGGER.error("❌ All retry attempts failed")
     return None
 
@@ -929,9 +950,8 @@ async def monitor_otp_loop():
                         is_new = await check_and_save_otp(sms)
                         
                         if is_new:
-                            # Telegram এ send করুন (৩টা বাটন সহ)
                             formatted_message = format_otp_message(sms)
-                            message_id = send_telegram_message(
+                            message_id = await send_telegram_message_async(
                                 formatted_message,
                                 reply_markup=make_otp_buttons()
                             )
@@ -1215,7 +1235,7 @@ async def monitor_single_panel(url, username, password, idx):
                         is_new         = await check_and_save_otp(sms)
                         if is_new:
                             formatted_message = format_otp_message(sms)
-                            message_id        = send_telegram_message(
+                            message_id        = await send_telegram_message_async(
                                 formatted_message,
                                 reply_markup=make_otp_buttons()
                             )
