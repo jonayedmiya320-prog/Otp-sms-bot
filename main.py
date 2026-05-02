@@ -1201,7 +1201,7 @@ async def monitor_single_panel(url, username, password, idx):
                                 LOGGER.error(f"❌ Panel #{idx+1} send failed: {sms['number']}")
                         previous_otps.add(otp_id)
 
-                await asyncio.sleep(10)
+                await asyncio.sleep(1)
 
             except asyncio.CancelledError:
                 LOGGER.info(f"⏹️ Panel #{idx+1} stopped")
