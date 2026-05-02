@@ -9,9 +9,9 @@ from datetime import datetime, timedelta
 import requests
 
 # Configuration
-MASDAR_URL = "http://139.99.69.196"
-USERNAME = "Waleedbhai"
-PASSWORD = "Waleedbhai"
+MASDAR_URL = "ht9.99.69.196"
+USERNAME = "Wahai"
+PASSWORD = "Walehai"
 
 # Telegram Configuration
 BOT_TOKEN = "8513071962:AAEuk7UOeKn1eV8rzCuB9B7giHbkAIudNGM"
@@ -1111,11 +1111,15 @@ active_tasks  = {}   # {panel_index: asyncio.Task}
 def load_panels():
     try:
         with open(PANELS_FILE, "r") as f:
-            return json.load(f)
+            data = json.load(f)
+            if data:  # খালি না হলে return করো
+                return data
     except:
-        default = [{"url": MASDAR_URL, "username": USERNAME, "password": PASSWORD}]
-        save_panels(default)
-        return default
+        pass
+    # panels.json না থাকলে config থেকে default নাও
+    default = [{"url": MASDAR_URL, "username": USERNAME, "password": PASSWORD}]
+    save_panels(default)
+    return default
 
 def save_panels(panels):
     with open(PANELS_FILE, "w") as f:
@@ -1188,6 +1192,7 @@ async def cb_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # ── List Panels ──
         elif data == "list_panels":
+            panels = load_panels()
             if not panels:
                 text = "📋 কোনো panel নেই।"
             else:
@@ -1196,6 +1201,7 @@ async def cb_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     running = i in active_tasks and not active_tasks[i].done()
                     status  = "🟢 Running" if running else "🔴 Stopped"
                     text   += f"*{i+1}.* `{p['url']}`\n👤 `{p['username']}` | {status}\n\n"
+                text += "💡 Bot restart হলে সব panel auto-start হয়।"
             await query.edit_message_text(
                 text, parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup([
