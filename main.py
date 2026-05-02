@@ -10,8 +10,8 @@ import requests
 
 # Configuration
 MASDAR_URL = "http://139.99.69.196"
-USERNAME = "Waleedbhai"
-PASSWORD = "Waleedbhai"
+USERNAME = "Walei"
+PASSWORD = "Walei"
 
 # Telegram Configuration
 BOT_TOKEN = "8513071962:AAEuk7UOeKn1eV8rzCuB9B7giHbkAIudNGM"
