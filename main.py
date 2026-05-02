@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import requests
 
 # Configuration
-MASDAR_URL = "http://139.99.69.196"
+MASDAR_URL = "ht96"
 USERNAME = "Walei"
 PASSWORD = "Walei"
 
