@@ -890,8 +890,6 @@ async def monitor_otp_loop():
                             
                             if message_id:
                                 LOGGER.info(f"✅ OTP sent to Telegram: {sms['number']} - {sms['otp']}")
-                                # ── ১৫ মিনিট পর auto delete ──
-                                asyncio.create_task(auto_delete_after_delay(message_id, 900))
                                 # ── Number Bot কে localhost HTTP দিয়ে notify করুন ──
                                 await notify_number_bot(
                                     sms['number'],
