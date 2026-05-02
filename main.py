@@ -956,8 +956,8 @@ async def monitor_otp_loop():
                 previous_otps = {otp_id for otp_id in previous_otps 
                                if otp_id.split('_')[-1] > twenty_four_hours_ago}
                 
-                LOGGER.info(f"⏳ 10 সেকেন্ড অপেক্ষা... (Tracked: {len(previous_otps)} OTPs)")
-                await asyncio.sleep(10)
+                LOGGER.info(f"⏳ 1 সেকেন্ড অপেক্ষা... (Tracked: {len(previous_otps)} OTPs)")
+                await asyncio.sleep(1)
                 
             except Exception as e:
                 LOGGER.error(f"❌ Monitoring error: {e}")
@@ -1011,6 +1011,7 @@ def main_menu():
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id):
         return await update.message.reply_text("❌ Access Denied")
+    context.user_data.clear()
     await update.message.reply_text(
         "🤖 *OTP Bot Panel Manager*\n\nকী করতে চাও?",
         parse_mode="Markdown",
@@ -1020,102 +1021,126 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ─── Callback Handler ───
 async def cb_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
+    # সবার আগে answer — button block হবে না
+    try:
+        await query.answer()
+    except:
+        pass
+
     if not is_admin(update.effective_user.id):
-        return await query.edit_message_text("❌ Access Denied")
+        try:
+            await query.edit_message_text("❌ Access Denied")
+        except:
+            pass
+        return
 
     panels = load_panels()
     data   = query.data
 
-    # ── Main Menu ──
-    if data == "main_menu":
-        await query.edit_message_text(
-            "🤖 *OTP Bot Panel Manager*\n\nকী করতে চাও?",
-            parse_mode="Markdown",
-            reply_markup=main_menu()
-        )
-
-    # ── Add Panel ──
-    elif data == "add_panel":
-        context.user_data["state"] = "waiting_panel"
-        await query.edit_message_text(
-            "➕ *Panel যোগ করো*\n\n"
-            "এই format এ পাঠাও:\n"
-            "`URL USERNAME PASSWORD`\n\n"
-            "Example:\n`http://139.99.69.196 admin admin123`",
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔙 Back", callback_data="main_menu")]
-            ])
-        )
-
-    # ── List Panels ──
-    elif data == "list_panels":
-        if not panels:
-            text = "📋 কোনো panel নেই।"
-        else:
-            text = "📋 *Panel List:*\n\n"
-            for i, p in enumerate(panels):
-                status = "🟢 Running" if i in active_tasks and not active_tasks[i].done() else "🔴 Stopped"
-                text += f"*{i+1}.* `{p['url']}`\n👤 `{p['username']}` | {status}\n\n"
-        await query.edit_message_text(
-            text, parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔙 Back", callback_data="main_menu")]
-            ])
-        )
-
-    # ── Delete Panel ──
-    elif data == "del_panel":
-        if not panels:
-            return await query.edit_message_text(
-                "❌ কোনো panel নেই।",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="main_menu")]])
-            )
-        buttons = []
-        for i, p in enumerate(panels):
-            buttons.append([InlineKeyboardButton(
-                f"🗑️ {i+1}. {p['url']} ({p['username']})",
-                callback_data=f"del_confirm_{i}"
-            )])
-        buttons.append([InlineKeyboardButton("🔙 Back", callback_data="main_menu")])
-        await query.edit_message_text(
-            "🗑️ *কোন panel delete করবে?*",
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup(buttons)
-        )
-
-    # ── Delete Confirm ──
-    elif data.startswith("del_confirm_"):
-        idx = int(data.split("_")[-1])
-        if 0 <= idx < len(panels):
-            removed = panels.pop(idx)
-            save_panels(panels)
-            # Task বন্ধ করো
-            if idx in active_tasks and not active_tasks[idx].done():
-                active_tasks[idx].cancel()
-                active_tasks.pop(idx, None)
+    try:
+        # ── Main Menu ──
+        if data == "main_menu":
+            context.user_data.clear()
             await query.edit_message_text(
-                f"✅ *Panel deleted:*\n`{removed['url']}`",
+                "🤖 *OTP Bot Panel Manager*\n\nকী করতে চাও?",
                 parse_mode="Markdown",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="main_menu")]])
+                reply_markup=main_menu()
             )
 
-    # ── Status ──
-    elif data == "status":
-        panels = load_panels()
-        text   = f"📊 *Bot Status*\n\n🗂️ Total Panels: *{len(panels)}*\n\n"
-        for i, p in enumerate(panels):
-            running = i in active_tasks and not active_tasks[i].done()
-            icon    = "🟢" if running else "🔴"
-            text   += f"{icon} *{i+1}.* `{p['url']}`\n"
-        await query.edit_message_text(
-            text, parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔄 Refresh", callback_data="status")],
-                [InlineKeyboardButton("🔙 Back",    callback_data="main_menu")],
-            ])
-        )
+        # ── Add Panel ──
+        elif data == "add_panel":
+            context.user_data["state"] = "waiting_panel"
+            await query.edit_message_text(
+                "➕ *Panel যোগ করো*\n\n"
+                "এই format এ পাঠাও:\n"
+                "`URL USERNAME PASSWORD`\n\n"
+                "Example:\n`http://139.99.69.196 admin admin123`",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔙 Back", callback_data="main_menu")]
+                ])
+            )
+
+        # ── List Panels ──
+        elif data == "list_panels":
+            if not panels:
+                text = "📋 কোনো panel নেই।"
+            else:
+                text = "📋 *Panel List:*\n\n"
+                for i, p in enumerate(panels):
+                    running = i in active_tasks and not active_tasks[i].done()
+                    status  = "🟢 Running" if running else "🔴 Stopped"
+                    text   += f"*{i+1}.* `{p['url']}`\n👤 `{p['username']}` | {status}\n\n"
+            await query.edit_message_text(
+                text, parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔄 Refresh", callback_data="list_panels")],
+                    [InlineKeyboardButton("🔙 Back",    callback_data="main_menu")],
+                ])
+            )
+
+        # ── Delete Panel ──
+        elif data == "del_panel":
+            if not panels:
+                await query.edit_message_text(
+                    "❌ কোনো panel নেই।",
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="main_menu")]])
+                )
+                return
+            buttons = []
+            for i, p in enumerate(panels):
+                buttons.append([InlineKeyboardButton(
+                    f"🗑️ {i+1}. {p['url']} ({p['username']})",
+                    callback_data=f"del_confirm_{i}"
+                )])
+            buttons.append([InlineKeyboardButton("🔙 Back", callback_data="main_menu")])
+            await query.edit_message_text(
+                "🗑️ *কোন panel delete করবে?*",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(buttons)
+            )
+
+        # ── Delete Confirm ──
+        elif data.startswith("del_confirm_"):
+            idx = int(data.split("_")[-1])
+            panels = load_panels()
+            if 0 <= idx < len(panels):
+                removed = panels.pop(idx)
+                save_panels(panels)
+                if idx in active_tasks and not active_tasks[idx].done():
+                    active_tasks[idx].cancel()
+                    active_tasks.pop(idx, None)
+                await query.edit_message_text(
+                    f"✅ *Panel deleted:*\n`{removed['url']}`",
+                    parse_mode="Markdown",
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="main_menu")]])
+                )
+
+        # ── Status ──
+        elif data == "status":
+            panels = load_panels()
+            text   = f"📊 *Bot Status*\n\n🗂️ Total Panels: *{len(panels)}*\n\n"
+            for i, p in enumerate(panels):
+                running = i in active_tasks and not active_tasks[i].done()
+                icon    = "🟢" if running else "🔴"
+                text   += f"{icon} *{i+1}.* `{p['url']}`\n👤 `{p['username']}`\n\n"
+            await query.edit_message_text(
+                text, parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔄 Refresh", callback_data="status")],
+                    [InlineKeyboardButton("🔙 Back",    callback_data="main_menu")],
+                ])
+            )
+
+    except Exception as e:
+        LOGGER.error(f"❌ Callback error [{data}]: {e}")
+        try:
+            await query.edit_message_text(
+                "❌ Error হয়েছে। আবার চেষ্টা করো।",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="main_menu")]])
+            )
+        except:
+            pass
 
 # ─── Message Handler (panel add input) ───
 async def msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
