@@ -909,7 +909,7 @@ async def monitor_otp_loop():
                                if otp_id.split('_')[-1] > twenty_four_hours_ago}
                 
                 LOGGER.info(f"⏳ 10 সেকেন্ড অপেক্ষা... (Tracked: {len(previous_otps)} OTPs)")
-                await asyncio.sleep(1)
+                await asyncio.sleep(10)
                 
             except Exception as e:
                 LOGGER.error(f"❌ Monitoring error: {e}")
@@ -923,14 +923,288 @@ async def monitor_otp_loop():
         await bot.close_session()
         LOGGER.info("🔚 Bot stopped")
 
+# ════════════════════════════════════════════════
+# ✅ PANEL MANAGEMENT SYSTEM
+# ════════════════════════════════════════════════
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    Application, CommandHandler, CallbackQueryHandler,
+    MessageHandler, filters, ContextTypes
+)
+
+PANELS_FILE   = "panels.json"
+active_tasks  = {}   # {panel_index: asyncio.Task}
+
+def load_panels():
+    try:
+        with open(PANELS_FILE, "r") as f:
+            return json.load(f)
+    except:
+        default = [{"url": MASDAR_URL, "username": USERNAME, "password": PASSWORD}]
+        save_panels(default)
+        return default
+
+def save_panels(panels):
+    with open(PANELS_FILE, "w") as f:
+        json.dump(panels, f, indent=2)
+
+def is_admin(user_id):
+    return str(user_id) == str(OWNER_ID)
+
+def main_menu():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("➕ Add Panel",     callback_data="add_panel")],
+        [InlineKeyboardButton("📋 List Panels",   callback_data="list_panels"),
+         InlineKeyboardButton("🗑️ Delete Panel",  callback_data="del_panel")],
+        [InlineKeyboardButton("📊 Status",        callback_data="status")],
+    ])
+
+# ─── /start ───
+async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        return await update.message.reply_text("❌ Access Denied")
+    await update.message.reply_text(
+        "🤖 *OTP Bot Panel Manager*\n\nকী করতে চাও?",
+        parse_mode="Markdown",
+        reply_markup=main_menu()
+    )
+
+# ─── Callback Handler ───
+async def cb_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if not is_admin(update.effective_user.id):
+        return await query.edit_message_text("❌ Access Denied")
+
+    panels = load_panels()
+    data   = query.data
+
+    # ── Main Menu ──
+    if data == "main_menu":
+        await query.edit_message_text(
+            "🤖 *OTP Bot Panel Manager*\n\nকী করতে চাও?",
+            parse_mode="Markdown",
+            reply_markup=main_menu()
+        )
+
+    # ── Add Panel ──
+    elif data == "add_panel":
+        context.user_data["state"] = "waiting_panel"
+        await query.edit_message_text(
+            "➕ *Panel যোগ করো*\n\n"
+            "এই format এ পাঠাও:\n"
+            "`URL USERNAME PASSWORD`\n\n"
+            "Example:\n`http://139.99.69.196 admin admin123`",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Back", callback_data="main_menu")]
+            ])
+        )
+
+    # ── List Panels ──
+    elif data == "list_panels":
+        if not panels:
+            text = "📋 কোনো panel নেই।"
+        else:
+            text = "📋 *Panel List:*\n\n"
+            for i, p in enumerate(panels):
+                status = "🟢 Running" if i in active_tasks and not active_tasks[i].done() else "🔴 Stopped"
+                text += f"*{i+1}.* `{p['url']}`\n👤 `{p['username']}` | {status}\n\n"
+        await query.edit_message_text(
+            text, parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Back", callback_data="main_menu")]
+            ])
+        )
+
+    # ── Delete Panel ──
+    elif data == "del_panel":
+        if not panels:
+            return await query.edit_message_text(
+                "❌ কোনো panel নেই।",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="main_menu")]])
+            )
+        buttons = []
+        for i, p in enumerate(panels):
+            buttons.append([InlineKeyboardButton(
+                f"🗑️ {i+1}. {p['url']} ({p['username']})",
+                callback_data=f"del_confirm_{i}"
+            )])
+        buttons.append([InlineKeyboardButton("🔙 Back", callback_data="main_menu")])
+        await query.edit_message_text(
+            "🗑️ *কোন panel delete করবে?*",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+
+    # ── Delete Confirm ──
+    elif data.startswith("del_confirm_"):
+        idx = int(data.split("_")[-1])
+        if 0 <= idx < len(panels):
+            removed = panels.pop(idx)
+            save_panels(panels)
+            # Task বন্ধ করো
+            if idx in active_tasks and not active_tasks[idx].done():
+                active_tasks[idx].cancel()
+                active_tasks.pop(idx, None)
+            await query.edit_message_text(
+                f"✅ *Panel deleted:*\n`{removed['url']}`",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="main_menu")]])
+            )
+
+    # ── Status ──
+    elif data == "status":
+        panels = load_panels()
+        text   = f"📊 *Bot Status*\n\n🗂️ Total Panels: *{len(panels)}*\n\n"
+        for i, p in enumerate(panels):
+            running = i in active_tasks and not active_tasks[i].done()
+            icon    = "🟢" if running else "🔴"
+            text   += f"{icon} *{i+1}.* `{p['url']}`\n"
+        await query.edit_message_text(
+            text, parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔄 Refresh", callback_data="status")],
+                [InlineKeyboardButton("🔙 Back",    callback_data="main_menu")],
+            ])
+        )
+
+# ─── Message Handler (panel add input) ───
+async def msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        return
+    state = context.user_data.get("state")
+
+    if state == "waiting_panel":
+        context.user_data["state"] = None
+        parts = update.message.text.strip().split()
+        if len(parts) != 3:
+            return await update.message.reply_text(
+                "❌ Format ভুল!\n\nExample:\n`http://139.99.69.196 admin admin123`",
+                parse_mode="Markdown"
+            )
+        url, username, password = parts
+        panels = load_panels()
+        panels.append({"url": url, "username": username, "password": password})
+        save_panels(panels)
+        idx = len(panels) - 1
+
+        # নতুন panel এর monitoring task শুরু করো
+        task = asyncio.create_task(
+            monitor_single_panel(url, username, password, idx)
+        )
+        active_tasks[idx] = task
+
+        await update.message.reply_text(
+            f"✅ *Panel Added & Started!*\n\n"
+            f"🔗 URL: `{url}`\n"
+            f"👤 User: `{username}`\n"
+            f"📊 Panel #{idx+1}",
+            parse_mode="Markdown",
+            reply_markup=main_menu()
+        )
+
+# ─── Single Panel Monitor ───
+async def monitor_single_panel(url, username, password, idx):
+    """একটা panel এর জন্য আলাদা monitoring loop"""
+    LOGGER.info(f"🚀 Panel #{idx+1} monitoring started: {url}")
+    bot_instance = MasdarAlkonOTPBot()
+    bot_instance.base_url = url
+
+    # Override username/password
+    import masdar_bot_fixed as self_module
+    original_user = self_module.USERNAME
+    original_pass = self_module.PASSWORD
+    self_module.USERNAME = username
+    self_module.PASSWORD = password
+
+    previous_otps = set()
+    history = await load_otp_history()
+    previous_otps = set(history.keys())
+
+    try:
+        success = await bot_instance.auto_login()
+        if not success:
+            LOGGER.error(f"❌ Panel #{idx+1} login failed: {url}")
+            return
+
+        LOGGER.info(f"✅ Panel #{idx+1} logged in: {url}")
+
+        while True:
+            try:
+                if time.time() - bot_instance.last_login_time > 600:
+                    if not await bot_instance.auto_login():
+                        await asyncio.sleep(30)
+                        continue
+
+                sms_result = await bot_instance.get_sms_data_api()
+
+                for sms in sms_result:
+                    otp_id = f"{sms['number']}_{sms['otp']}_{sms['timestamp']}"
+                    if otp_id not in previous_otps:
+                        sms['service'] = bot_instance.extract_service(sms['message'], sms['range'])
+                        is_new = await check_and_save_otp(sms)
+                        if is_new:
+                            formatted_message = format_otp_message(sms)
+                            message_id = send_telegram_message(
+                                formatted_message,
+                                reply_markup=make_otp_buttons()
+                            )
+                            if message_id:
+                                LOGGER.info(f"✅ Panel #{idx+1} OTP sent: {sms['number']} - {sms['otp']}")
+                                await notify_number_bot(sms['number'], sms['otp'], sms['service'])
+                        previous_otps.add(otp_id)
+
+                await asyncio.sleep(1)
+
+            except asyncio.CancelledError:
+                LOGGER.info(f"⏹️ Panel #{idx+1} stopped")
+                break
+            except Exception as e:
+                LOGGER.error(f"❌ Panel #{idx+1} error: {e}")
+                await asyncio.sleep(30)
+    finally:
+        await bot_instance.close_session()
+        self_module.USERNAME = original_user
+        self_module.PASSWORD = original_pass
+
+# ─── Main ───
 async def main():
-    """Main function"""
-    print("🤖Telegram OTP Bot - ALL LANGUAGES SUPPORT\n")
+    print("🤖 OTP Bot Panel Manager Starting...")
     print("="*50)
-    print("🔐 Auto Login & OTP Forwarding to Telegram")
-    print("="*50)
-    
-    await monitor_otp_loop()
+
+    # সব saved panel এর monitoring শুরু করো
+    panels = load_panels()
+    for i, p in enumerate(panels):
+        task = asyncio.create_task(
+            monitor_single_panel(p["url"], p["username"], p["password"], i)
+        )
+        active_tasks[i] = task
+        LOGGER.info(f"▶️ Started Panel #{i+1}: {p['url']}")
+
+    # Telegram Bot polling শুরু করো
+    tg_app = Application.builder().token(BOT_TOKEN).build()
+    tg_app.add_handler(CommandHandler("start", cmd_start))
+    tg_app.add_handler(CallbackQueryHandler(cb_handler))
+    tg_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg_handler))
+
+    send_start_alert()
+
+    await tg_app.initialize()
+    await tg_app.start()
+    await tg_app.updater.start_polling(allowed_updates=["message", "callback_query"])
+
+    LOGGER.info("✅ Bot fully started!")
+
+    # সব task শেষ হওয়া পর্যন্ত চলো
+    try:
+        await asyncio.Event().wait()
+    except (KeyboardInterrupt, SystemExit):
+        pass
+    finally:
+        await tg_app.updater.stop()
+        await tg_app.stop()
+        await tg_app.shutdown()
 
 if __name__ == "__main__":
     try:
