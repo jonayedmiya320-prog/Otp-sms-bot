@@ -9,22 +9,14 @@ from datetime import datetime, timedelta
 import requests
 
 # Configuration
-MASDAR_URL = "http://139.99.69.196"
-USERNAME = "Waleedbhai"
-PASSWORD = "Waleedbhai"
+MASDAR_URL = "http://45.82.67.20"
+USERNAME = "helana5"
+PASSWORD = "mamoun1010"
 
 # Telegram Configuration
-BOT_TOKEN = "8513071962:AAEuk7UOeKn1eV8rzCuB9B7giHbkAIudNGM"
-CHAT_ID = "-1003247504066"
+BOT_TOKEN = "8185988088:AAF2aW5exkeA2SDRWiAG8t8Gy4RHQ4GoDSI"
+CHAT_ID = "-1003774165897"
 OWNER_ID = "7095358778"
-
-# Number Bot HTTP URL
-NUMBER_BOT_HTTP_URL = "http://number-bot-production.up.railway.app/otp"
-
-# Telegram Button URLs
-NUMBER_BOT_URL     = "https://t.me/EARNING_HUB_NUMBER_BOT"
-MAIN_CHANNEL_URL   = "https://t.me/earning_hub_official_channel"
-NUMBER_CHANNEL_URL = "https://t.me/earning_hub_number_channel"
 
 # Headers
 HEADERS = {
@@ -36,99 +28,18 @@ HEADERS = {
 
 # Service patterns for OTP detection
 SERVICE_PATTERNS = {
-    # Social Media
-    'WhatsApp':   r'whatsapp|واتساب|watsapp',
-    'Telegram':   r'telegram',
-    'Facebook':   r'facebook|fb\.com|meta',
-    'Instagram':  r'instagram|ig\b',
-    'Twitter':    r'twitter|x\.com',
-    'TikTok':     r'tiktok|tik tok',
-    'Snapchat':   r'snapchat',
-    'LinkedIn':   r'linkedin',
-    'Pinterest':  r'pinterest',
-    'Reddit':     r'reddit',
-    'Discord':    r'discord',
-    'Viber':      r'viber',
-    'Line':       r'\bline\b',
-    'WeChat':     r'wechat|weixin',
-    'KakaoTalk':  r'kakao',
-    'Zalo':       r'zalo',
-    'Skype':      r'skype',
-    # Google
-    'Google':     r'google|gmail|youtube',
-    # Microsoft
-    'Microsoft':  r'microsoft|outlook|hotmail|msn|xbox|live\.com',
-    # Apple
-    'Apple':      r'apple|icloud|itunes|app store',
-    # Shopping
-    'Amazon':     r'amazon',
-    'SHEIN':      r'shein',
-    'Alibaba':    r'alibaba|aliexpress|alipay',
-    'eBay':       r'ebay',
-    'Shopee':     r'shopee',
-    'Lazada':     r'lazada',
-    'Daraz':      r'daraz',
-    'Jumia':      r'jumia',
-    'Flipkart':   r'flipkart',
-    'Noon':       r'\bnoon\b',
-    # Payment
-    'PayPal':     r'paypal',
-    'Stripe':     r'stripe',
-    'Wise':       r'\bwise\b|transferwise',
-    'Binance':    r'binance',
-    'Coinbase':   r'coinbase',
-    'Crypto':     r'crypto\.com',
-    'OKX':        r'\bokx\b',
-    'Bybit':      r'bybit',
-    'Banking':    r'bank|visa|mastercard|swift|iban',
-    'Payoneer':   r'payoneer',
-    'Skrill':     r'skrill',
-    # Ride & Food
-    'Uber':       r'\buber\b',
-    'Lyft':       r'lyft',
-    'Bolt':       r'\bbolt\b',
-    'Careem':     r'careem',
-    'Grab':       r'\bgrab\b',
-    'Rapido':     r'rapido',
-    'InDrive':    r'indrive',
-    'Swiggy':     r'swiggy',
-    'Zomato':     r'zomato',
-    'Talabat':    r'talabat',
-    # Streaming
-    'Netflix':    r'netflix',
-    'Spotify':    r'spotify',
-    'YouTube':    r'youtube',
-    'Disney':     r'disney',
-    'HBO':        r'\bhbo\b',
-    'Amazon Prime': r'prime video|primevideo',
-    # Dating
-    'Tinder':     r'tinder',
-    'Bumble':     r'bumble',
-    'Badoo':      r'badoo',
-    'OkCupid':    r'okcupid',
-    'Hinge':      r'hinge',
-    # Travel
-    'Airbnb':     r'airbnb',
-    'Booking':    r'booking\.com',
-    'Agoda':      r'agoda',
-    'Expedia':    r'expedia',
-    # Other Services
-    'Zoom':       r'zoom',
-    'Dropbox':    r'dropbox',
-    'Adobe':      r'adobe',
-    'Canva':      r'canva',
-    'OpenAI':     r'openai|chatgpt',
-    'Freelancer': r'freelancer',
-    'Fiverr':     r'fiverr',
-    'Upwork':     r'upwork',
-    'Quora':      r'quora',
-    'Truecaller': r'truecaller',
-    'OLX':        r'\bolx\b',
-    'Craigslist': r'craigslist',
-    'Twilio':     r'twilio',
-    'Textverify': r'textverify',
-    # Fallback
-    'OTP':        r'verification|verify|otp|code|كود|رمز|pin\b|passcode',
+    'Google': r'google|gmail',
+    'Facebook': r'facebook|fb',
+    'WhatsApp': r'whatsapp|واتساب',
+    'Telegram': r'telegram',
+    'Amazon': r'amazon',
+    'Twitter': r'twitter',
+    'Instagram': r'instagram',
+    'Microsoft': r'microsoft|outlook|hotmail',
+    'Apple': r'apple|icloud',
+    'PayPal': r'paypal',
+    'Banking': r'bank|visa|mastercard',
+    'Other': r'verification|code|otp|كود|رمز'
 }
 
 # Extended Country flags emojis - 250+ countries
@@ -266,81 +177,102 @@ class MasdarAlkonOTPBot:
             return False
     
     async def get_sms_data_api(self):
-        """API থেকে SMS data fetch করুন - শুধু আজকের"""
+        """API থেকে SMS data fetch করুন - AUTO SERVER TIME DETECTION"""
         try:
             timestamp = int(time.time() * 1000)
+            
+            # AUTO SERVER TIME DETECTION
+            # প্রথমে আজকের date দিয়ে try করবে
             today = datetime.now().strftime("%Y-%m-%d")
-
-            start_date = f"{today}%2000:00:00"
-            end_date   = f"{today}%2023:59:59"
-
-            api_url = (
-                f"{self.base_url}/ints/client/res/data_smscdr.php?"
-                f"fdate1={start_date}&fdate2={end_date}&"
-                f"frange=&fnum=&fcli=&fgdate=&fgmonth=&fgrange=&fgnumber=&fgcli=&fg=0&"
-                f"sEcho=1&iColumns=7&sColumns=%2C%2C%2C%2C%2C%2C&"
-                f"iDisplayStart=0&iDisplayLength=100&"
-                f"mDataProp_0=0&sSearch_0=&bRegex_0=false&bSearchable_0=true&bSortable_0=true&"
-                f"mDataProp_1=1&sSearch_1=&bRegex_1=false&bSearchable_1=true&bSortable_1=true&"
-                f"mDataProp_2=2&sSearch_2=&bRegex_2=false&bSearchable_2=true&bSortable_2=true&"
-                f"mDataProp_3=3&sSearch_3=&bRegex_3=false&bSearchable_3=true&bSortable_3=true&"
-                f"mDataProp_4=4&sSearch_4=&bRegex_4=false&bSearchable_4=true&bSortable_4=true&"
-                f"mDataProp_5=5&sSearch_5=&bRegex_5=false&bSearchable_5=true&bSortable_5=true&"
-                f"mDataProp_6=6&sSearch_6=&bRegex_6=false&bSearchable_6=true&bSortable_6=true&"
-                f"sSearch=&bRegex=false&iSortCol_0=0&sSortDir_0=desc&iSortingCols=1&_={timestamp}"
-            )
-
-            LOGGER.info(f"📡 আজকের SMS fetch করছি ({today})...")
-
-            api_headers = {
-                'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Infinix X6525B Build/TP1A.220624.014) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.7339.207 Mobile Safari/537.36',
-                'Accept': 'application/json, text/javascript, */*; q=0.01',
-                'Accept-Language': 'en-US,en;q=0.9,bn-BD;q=0.8,bn;q=0.7',
-                'X-Requested-With': 'XMLHttpRequest',
-                'Referer': f'{self.base_url}/ints/client/SMSCDRStats'
-            }
-
-            async with self.session.get(api_url, headers=api_headers, ssl=False) as response:
-                if response.status == 200:
-                    response_text = await response.text()
-                    try:
-                        data = json.loads(response_text)
-                        total_records = int(data.get('iTotalRecords', 0))
-
-                        if total_records > 0:
-                            LOGGER.info(f"✅ আজকে {total_records} টি record পাওয়া গেছে")
-                            sms_list = []
-                            for item in data.get("aaData", []):
-                                if isinstance(item, list) and len(item) >= 5 and isinstance(item[0], str):
-                                    if item[0].startswith('0,0,0,0'):
-                                        continue
-                                    sms_entry = {
-                                        'timestamp':     item[0],
-                                        'range':         item[1],
-                                        'number':        item[2],
-                                        'service':       item[3],
-                                        'message':       item[4],
-                                        'otp':           self.extract_otp(item[4]),
-                                        'country':       self.extract_country_from_number(item[2]),
-                                        'country_emoji': self.get_country_emoji(self.extract_country_from_number(item[2]))
-                                    }
-                                    if sms_entry['otp']:
-                                        sms_list.append(sms_entry)
-                                        LOGGER.info(f"✅ OTP পাওয়া গেছে: {sms_entry['number']} - {sms_entry['otp']}")
-
-                            LOGGER.info(f"📨 মোট {len(sms_list)} টি OTP পাওয়া গেছে")
-                            return sms_list
-                        else:
-                            LOGGER.info("⚠️ আজকে এখনো কোনো SMS নেই")
-                            return []
-
-                    except json.JSONDecodeError:
-                        LOGGER.error("❌ JSON parse error")
-                        return []
-                else:
-                    LOGGER.error(f"❌ API error {response.status}")
-                    return []
-
+            yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+            
+            # প্রথমে TODAY এর date দিয়ে try করুন
+            dates_to_try = [today, yesterday]
+            
+            for server_date in dates_to_try:
+                start_date = f"{server_date}%2000:00:00"
+                end_date = f"{server_date}%2023:59:59"
+                
+                # API URL with current date
+                api_url = (
+                    f"{self.base_url}/ints/client/res/data_smscdr.php?"
+                    f"fdate1={start_date}&fdate2={end_date}&"
+                    f"frange=&fnum=&fcli=&fgdate=&fgmonth=&fgrange=&fgnumber=&fgcli=&fg=0&"
+                    f"sEcho=1&iColumns=7&sColumns=%2C%2C%2C%2C%2C%2C&"
+                    f"iDisplayStart=0&iDisplayLength=100&"
+                    f"mDataProp_0=0&sSearch_0=&bRegex_0=false&bSearchable_0=true&bSortable_0=true&"
+                    f"mDataProp_1=1&sSearch_1=&bRegex_1=false&bSearchable_1=true&bSortable_1=true&"
+                    f"mDataProp_2=2&sSearch_2=&bRegex_2=false&bSearchable_2=true&bSortable_2=true&"
+                    f"mDataProp_3=3&sSearch_3=&bRegex_3=false&bSearchable_3=true&bSortable_3=true&"
+                    f"mDataProp_4=4&sSearch_4=&bRegex_4=false&bSearchable_4=true&bSortable_4=true&"
+                    f"mDataProp_5=5&sSearch_5=&bRegex_5=false&bSearchable_5=true&bSortable_5=true&"
+                    f"mDataProp_6=6&sSearch_6=&bRegex_6=false&bSearchable_6=true&bSortable_6=true&"
+                    f"sSearch=&bRegex=false&iSortCol_0=0&sSortDir_0=desc&iSortingCols=1&_={timestamp}"
+                )
+                
+                LOGGER.info(f"📡 API থেকে DATE ({server_date}) এর SMS data fetch করার চেষ্টা করছি...")
+                
+                # API headers
+                api_headers = {
+                    'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Infinix X6525B Build/TP1A.220624.014) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.7339.207 Mobile Safari/537.36',
+                    'Accept': 'application/json, text/javascript, */*; q=0.01',
+                    'Accept-Language': 'en-US,en;q=0.9,bn-BD;q=0.8,bn;q=0.7',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Referer': f'{self.base_url}/ints/client/SMSCDRStats'
+                }
+                
+                async with self.session.get(api_url, headers=api_headers, ssl=False) as response:
+                    if response.status == 200:
+                        response_text = await response.text()
+                        
+                        # JSON response check করুন
+                        try:
+                            data = json.loads(response_text)
+                            total_records = int(data.get('iTotalRecords', 0))
+                            
+                            # যদি data পাওয়া যায় (0 এর বেশি records)
+                            if total_records > 0:
+                                LOGGER.info(f"✅ Server time detected: {server_date} (Records: {total_records})")
+                                
+                                if "aaData" in data:
+                                    sms_list = []
+                                    for item in data["aaData"]:
+                                        if isinstance(item, list) and len(item) >= 5 and isinstance(item[0], str):
+                                            if item[0].startswith('0,0,0,0'):
+                                                continue
+                                                
+                                            sms_entry = {
+                                                'timestamp': item[0],
+                                                'range': item[1],
+                                                'number': item[2],
+                                                'service': item[3],
+                                                'message': item[4],
+                                                'otp': self.extract_otp(item[4]),
+                                                'country': self.extract_country_from_number(item[2]),
+                                                'country_emoji': self.get_country_emoji(self.extract_country_from_number(item[2]))
+                                            }
+                                            if sms_entry['otp']:
+                                                sms_list.append(sms_entry)
+                                                LOGGER.info(f"✅ OTP পাওয়া গেছে: {sms_entry['number']} - {sms_entry['otp']} - {sms_entry['timestamp']}")
+                                
+                                LOGGER.info(f"📨 API থেকে {len(sms_list)} টি OTP মেসেজ পাওয়া গেছে")
+                                return sms_list
+                            else:
+                                LOGGER.info(f"⚠️ No records found for date: {server_date}, trying next date...")
+                                continue
+                                
+                        except json.JSONDecodeError:
+                            LOGGER.error(f"❌ JSON parse error for date: {server_date}")
+                            continue
+                        
+                    else:
+                        LOGGER.error(f"❌ API error {response.status} for date: {server_date}")
+                        continue
+            
+            # যদি কোনো date এ data না পাওয়া যায়
+            LOGGER.error("❌ No data found for any date (today/yesterday)")
+            return []
+                        
         except Exception as e:
             LOGGER.error(f"❌ API fetch error: {e}")
             return []
@@ -634,101 +566,29 @@ async def check_and_save_otp(sms_data):
     
     return False
 
-def send_telegram_message(message, reply_markup=None, retries=3):
-    """Telegram এ message send করুন — retry সহ"""
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {
-        'chat_id': CHAT_ID,
-        'text': message,
-        'parse_mode': 'HTML'
-    }
-    if reply_markup:
-        payload['reply_markup'] = reply_markup
-
-    for attempt in range(1, retries + 1):
-        try:
-            response = requests.post(url, json=payload, timeout=30)
-            if response.status_code == 200:
-                LOGGER.info("✅ Telegram message sent successfully")
-                result = response.json()
-                return result.get('result', {}).get('message_id')
-            else:
-                LOGGER.error(f"❌ Telegram API error: {response.status_code}")
-        except Exception as e:
-            LOGGER.warning(f"⚠️ Attempt {attempt}/{retries} failed: {e}")
-            if attempt < retries:
-                time.sleep(5)
-    LOGGER.error("❌ All retry attempts failed")
-    return None
-
-
-def delete_telegram_message(message_id):
-    """Telegram থেকে message delete করুন"""
+def send_telegram_message(message):
+    """Telegram এ message send করুন"""
     try:
-        url = f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage"
-        payload = {'chat_id': CHAT_ID, 'message_id': message_id}
-        response = requests.post(url, json=payload, timeout=15)
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+        
+        payload = {
+            'chat_id': CHAT_ID,
+            'text': message,
+            'parse_mode': 'HTML'
+        }
+        
+        response = requests.post(url, data=payload, timeout=15)
+        
         if response.status_code == 200:
-            LOGGER.info(f"🗑️ Message {message_id} deleted")
+            LOGGER.info("✅ Telegram message sent successfully")
+            return True
         else:
-            LOGGER.warning(f"⚠️ Delete failed: {response.status_code}")
+            LOGGER.error(f"❌ Telegram API error: {response.status_code}")
+            return False
+        
     except Exception as e:
-        LOGGER.error(f"❌ Delete error: {e}")
-
-
-async def auto_delete_after_delay(message_id, delay_seconds=900):
-    """১৫ মিনিট পর message delete করুন"""
-    await asyncio.sleep(delay_seconds)
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, delete_telegram_message, message_id)
-
-
-def make_otp_buttons():
-    """OTP মেসেজের নিচে ৩টা inline button — OTP বটের মতো সাজানো"""
-    return {
-        "inline_keyboard": [
-            [
-                {"text": "📱 Number Channel", "url": NUMBER_CHANNEL_URL}
-            ],
-            [
-                {"text": "🤖 Number bot",    "url": NUMBER_BOT_URL},
-                {"text": "📢 main Channel",  "url": MAIN_CHANNEL_URL}
-            ]
-        ]
-    }
-
-
-async def notify_number_bot(phone_number: str, otp_code: str, service: str):
-    """Number Bot কে HTTP POST দিয়ে OTP notify করুন"""
-    import urllib.request as _req
-
-    clean_number  = re.sub(r"\D", "", str(phone_number))
-    clean_otp     = re.sub(r"[\s\-]", "", str(otp_code))
-    clean_service = str(service).lower().split()[0] if service else "other"
-
-    payload = {
-        "number":  clean_number,
-        "otp":     clean_otp,
-        "service": clean_service
-    }
-
-    def _post():
-        data = json.dumps(payload).encode("utf-8")
-        req  = _req.Request(
-            NUMBER_BOT_HTTP_URL,
-            data=data,
-            headers={"Content-Type": "application/json"},
-            method="POST"
-        )
-        with _req.urlopen(req, timeout=10) as resp:
-            return json.loads(resp.read().decode())
-
-    loop = asyncio.get_event_loop()
-    try:
-        result = await loop.run_in_executor(None, _post)
-        LOGGER.info(f"✅ Number Bot notified → number={clean_number} otp={clean_otp} result={result}")
-    except Exception as e:
-        LOGGER.warning(f"⚠️ Number Bot HTTP notify failed (non-critical): {e}")
+        LOGGER.error(f"❌ Telegram send error: {e}")
+        return False
 
 # ═══════════════════════════════════════════════════════════════
 # ✅ CHANGED: mask_phone — স্ক্রিনশটের মতো 5 digit + *** + 4 digit
@@ -772,32 +632,27 @@ def mask_phone(number: str) -> str:
 # ✅ CHANGED: format_otp_message — স্ক্রিনশটের মতো ফরম্যাট
 # ═══════════════════════════════════════════════════════════════
 def format_otp_message(sms_data):
-    """OTP message formatting করুন"""
-    country       = sms_data['country']
-    country_emoji = sms_data.get('country_emoji', '🌍')
-    service       = sms_data['service']
-    otp_code      = sms_data['otp']
-    number        = sms_data['number']
-    full_message  = sms_data['message']
+    """OTP message formatting করুন - স্ক্রিনশটের মতো ফরম্যাট"""
+    full_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    country = sms_data['country']
+    service = sms_data['service']
+    otp_code = sms_data['otp']
+    number = sms_data['number']
+    full_message = sms_data['message']
 
     masked_number = mask_phone(number)
 
-    # Service Unknown হলে message থেকে প্রথম শব্দ দেখাও
-    if not service or service == 'Other' or service == 'OTP':
-        # message এর প্রথম [] bracket এর ভেতর থেকে service নাও
-        bracket = re.search(r'\[([^\]]+)\]', full_message)
-        if bracket:
-            service = bracket.group(1)
-        else:
-            service = 'Unknown'
-
     message = (
-        "🔥 <b>FIRST OTP RECEIVED</b> 🔥\n\n"
+        "🔥 <b>FIRST OTP RECEIVED</b> 🔥\n"
+        "➖➖➖➖➖➖➖➖➖➖➖\n\n"
+        f"📅 <b>Time:</b> <code>{full_datetime}</code>\n"
         f"📱 <b>Number:</b> <code>{masked_number}</code>\n"
-        f"🏢 <b>Operator:</b> <code>{country_emoji} {country}</code>\n"
+        f"🏢 <b>Operator:</b> <code>{country}</code>\n"
         f"📟 <b>Platform:</b> <code>{service}</code>\n\n"
         f"🟢 <b>OTP Code:</b> <code>{otp_code}</code>\n\n"
-        f"📝 <b>Message:</b>\n<code>{full_message}</code>"
+        f"📝 <b>Message:</b>\n<code>{full_message}</code>\n\n"
+        "➖➖➖➖➖➖➖➖➖➖➖\n"
+        "🤖 <b>OTP Monitor Bot</b>"
     )
 
     return message
@@ -847,12 +702,9 @@ async def monitor_otp_loop():
             return
         
         LOGGER.info("✅ Login successful, starting OTP monitoring...")
-
-        # ── পুরনো history load করো — restart এ পুরনো OTP আবার না পাঠাতে ──
-        history = await load_otp_history()
-        previous_otps = set(history.keys())
-        LOGGER.info(f"📂 History loaded: {len(previous_otps)} OTPs already tracked")
-
+        
+        previous_otps = set()
+        
         while True:
             try:
                 # Session check করুন
@@ -881,21 +733,12 @@ async def monitor_otp_loop():
                         is_new = await check_and_save_otp(sms)
                         
                         if is_new:
-                            # Telegram এ send করুন (৩টা বাটন সহ)
+                            # Telegram এ send করুন
                             formatted_message = format_otp_message(sms)
-                            message_id = send_telegram_message(
-                                formatted_message,
-                                reply_markup=make_otp_buttons()
-                            )
+                            telegram_success = send_telegram_message(formatted_message)
                             
-                            if message_id:
+                            if telegram_success:
                                 LOGGER.info(f"✅ OTP sent to Telegram: {sms['number']} - {sms['otp']}")
-                                # ── Number Bot কে localhost HTTP দিয়ে notify করুন ──
-                                await notify_number_bot(
-                                    sms['number'],
-                                    sms['otp'],
-                                    sms['service']
-                                )
                             else:
                                 LOGGER.error(f"❌ Failed to send OTP for {sms['number']}")
                         
@@ -923,288 +766,14 @@ async def monitor_otp_loop():
         await bot.close_session()
         LOGGER.info("🔚 Bot stopped")
 
-# ════════════════════════════════════════════════
-# ✅ PANEL MANAGEMENT SYSTEM
-# ════════════════════════════════════════════════
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    Application, CommandHandler, CallbackQueryHandler,
-    MessageHandler, filters, ContextTypes
-)
-
-PANELS_FILE   = "panels.json"
-active_tasks  = {}   # {panel_index: asyncio.Task}
-
-def load_panels():
-    try:
-        with open(PANELS_FILE, "r") as f:
-            return json.load(f)
-    except:
-        default = [{"url": MASDAR_URL, "username": USERNAME, "password": PASSWORD}]
-        save_panels(default)
-        return default
-
-def save_panels(panels):
-    with open(PANELS_FILE, "w") as f:
-        json.dump(panels, f, indent=2)
-
-def is_admin(user_id):
-    return str(user_id) == str(OWNER_ID)
-
-def main_menu():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("➕ Add Panel",     callback_data="add_panel")],
-        [InlineKeyboardButton("📋 List Panels",   callback_data="list_panels"),
-         InlineKeyboardButton("🗑️ Delete Panel",  callback_data="del_panel")],
-        [InlineKeyboardButton("📊 Status",        callback_data="status")],
-    ])
-
-# ─── /start ───
-async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
-        return await update.message.reply_text("❌ Access Denied")
-    await update.message.reply_text(
-        "🤖 *OTP Bot Panel Manager*\n\nকী করতে চাও?",
-        parse_mode="Markdown",
-        reply_markup=main_menu()
-    )
-
-# ─── Callback Handler ───
-async def cb_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    if not is_admin(update.effective_user.id):
-        return await query.edit_message_text("❌ Access Denied")
-
-    panels = load_panels()
-    data   = query.data
-
-    # ── Main Menu ──
-    if data == "main_menu":
-        await query.edit_message_text(
-            "🤖 *OTP Bot Panel Manager*\n\nকী করতে চাও?",
-            parse_mode="Markdown",
-            reply_markup=main_menu()
-        )
-
-    # ── Add Panel ──
-    elif data == "add_panel":
-        context.user_data["state"] = "waiting_panel"
-        await query.edit_message_text(
-            "➕ *Panel যোগ করো*\n\n"
-            "এই format এ পাঠাও:\n"
-            "`URL USERNAME PASSWORD`\n\n"
-            "Example:\n`http://139.99.69.196 admin admin123`",
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔙 Back", callback_data="main_menu")]
-            ])
-        )
-
-    # ── List Panels ──
-    elif data == "list_panels":
-        if not panels:
-            text = "📋 কোনো panel নেই।"
-        else:
-            text = "📋 *Panel List:*\n\n"
-            for i, p in enumerate(panels):
-                status = "🟢 Running" if i in active_tasks and not active_tasks[i].done() else "🔴 Stopped"
-                text += f"*{i+1}.* `{p['url']}`\n👤 `{p['username']}` | {status}\n\n"
-        await query.edit_message_text(
-            text, parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔙 Back", callback_data="main_menu")]
-            ])
-        )
-
-    # ── Delete Panel ──
-    elif data == "del_panel":
-        if not panels:
-            return await query.edit_message_text(
-                "❌ কোনো panel নেই।",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="main_menu")]])
-            )
-        buttons = []
-        for i, p in enumerate(panels):
-            buttons.append([InlineKeyboardButton(
-                f"🗑️ {i+1}. {p['url']} ({p['username']})",
-                callback_data=f"del_confirm_{i}"
-            )])
-        buttons.append([InlineKeyboardButton("🔙 Back", callback_data="main_menu")])
-        await query.edit_message_text(
-            "🗑️ *কোন panel delete করবে?*",
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup(buttons)
-        )
-
-    # ── Delete Confirm ──
-    elif data.startswith("del_confirm_"):
-        idx = int(data.split("_")[-1])
-        if 0 <= idx < len(panels):
-            removed = panels.pop(idx)
-            save_panels(panels)
-            # Task বন্ধ করো
-            if idx in active_tasks and not active_tasks[idx].done():
-                active_tasks[idx].cancel()
-                active_tasks.pop(idx, None)
-            await query.edit_message_text(
-                f"✅ *Panel deleted:*\n`{removed['url']}`",
-                parse_mode="Markdown",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="main_menu")]])
-            )
-
-    # ── Status ──
-    elif data == "status":
-        panels = load_panels()
-        text   = f"📊 *Bot Status*\n\n🗂️ Total Panels: *{len(panels)}*\n\n"
-        for i, p in enumerate(panels):
-            running = i in active_tasks and not active_tasks[i].done()
-            icon    = "🟢" if running else "🔴"
-            text   += f"{icon} *{i+1}.* `{p['url']}`\n"
-        await query.edit_message_text(
-            text, parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔄 Refresh", callback_data="status")],
-                [InlineKeyboardButton("🔙 Back",    callback_data="main_menu")],
-            ])
-        )
-
-# ─── Message Handler (panel add input) ───
-async def msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
-        return
-    state = context.user_data.get("state")
-
-    if state == "waiting_panel":
-        context.user_data["state"] = None
-        parts = update.message.text.strip().split()
-        if len(parts) != 3:
-            return await update.message.reply_text(
-                "❌ Format ভুল!\n\nExample:\n`http://139.99.69.196 admin admin123`",
-                parse_mode="Markdown"
-            )
-        url, username, password = parts
-        panels = load_panels()
-        panels.append({"url": url, "username": username, "password": password})
-        save_panels(panels)
-        idx = len(panels) - 1
-
-        # নতুন panel এর monitoring task শুরু করো
-        task = asyncio.create_task(
-            monitor_single_panel(url, username, password, idx)
-        )
-        active_tasks[idx] = task
-
-        await update.message.reply_text(
-            f"✅ *Panel Added & Started!*\n\n"
-            f"🔗 URL: `{url}`\n"
-            f"👤 User: `{username}`\n"
-            f"📊 Panel #{idx+1}",
-            parse_mode="Markdown",
-            reply_markup=main_menu()
-        )
-
-# ─── Single Panel Monitor ───
-async def monitor_single_panel(url, username, password, idx):
-    """একটা panel এর জন্য আলাদা monitoring loop"""
-    LOGGER.info(f"🚀 Panel #{idx+1} monitoring started: {url}")
-    bot_instance = MasdarAlkonOTPBot()
-    bot_instance.base_url = url
-
-    # Override username/password
-    import masdar_bot_fixed as self_module
-    original_user = self_module.USERNAME
-    original_pass = self_module.PASSWORD
-    self_module.USERNAME = username
-    self_module.PASSWORD = password
-
-    previous_otps = set()
-    history = await load_otp_history()
-    previous_otps = set(history.keys())
-
-    try:
-        success = await bot_instance.auto_login()
-        if not success:
-            LOGGER.error(f"❌ Panel #{idx+1} login failed: {url}")
-            return
-
-        LOGGER.info(f"✅ Panel #{idx+1} logged in: {url}")
-
-        while True:
-            try:
-                if time.time() - bot_instance.last_login_time > 600:
-                    if not await bot_instance.auto_login():
-                        await asyncio.sleep(30)
-                        continue
-
-                sms_result = await bot_instance.get_sms_data_api()
-
-                for sms in sms_result:
-                    otp_id = f"{sms['number']}_{sms['otp']}_{sms['timestamp']}"
-                    if otp_id not in previous_otps:
-                        sms['service'] = bot_instance.extract_service(sms['message'], sms['range'])
-                        is_new = await check_and_save_otp(sms)
-                        if is_new:
-                            formatted_message = format_otp_message(sms)
-                            message_id = send_telegram_message(
-                                formatted_message,
-                                reply_markup=make_otp_buttons()
-                            )
-                            if message_id:
-                                LOGGER.info(f"✅ Panel #{idx+1} OTP sent: {sms['number']} - {sms['otp']}")
-                                await notify_number_bot(sms['number'], sms['otp'], sms['service'])
-                        previous_otps.add(otp_id)
-
-                await asyncio.sleep(1)
-
-            except asyncio.CancelledError:
-                LOGGER.info(f"⏹️ Panel #{idx+1} stopped")
-                break
-            except Exception as e:
-                LOGGER.error(f"❌ Panel #{idx+1} error: {e}")
-                await asyncio.sleep(30)
-    finally:
-        await bot_instance.close_session()
-        self_module.USERNAME = original_user
-        self_module.PASSWORD = original_pass
-
-# ─── Main ───
 async def main():
-    print("🤖 OTP Bot Panel Manager Starting...")
+    """Main function"""
+    print("🤖Telegram OTP Bot - ALL LANGUAGES SUPPORT\n")
     print("="*50)
-
-    # সব saved panel এর monitoring শুরু করো
-    panels = load_panels()
-    for i, p in enumerate(panels):
-        task = asyncio.create_task(
-            monitor_single_panel(p["url"], p["username"], p["password"], i)
-        )
-        active_tasks[i] = task
-        LOGGER.info(f"▶️ Started Panel #{i+1}: {p['url']}")
-
-    # Telegram Bot polling শুরু করো
-    tg_app = Application.builder().token(BOT_TOKEN).build()
-    tg_app.add_handler(CommandHandler("start", cmd_start))
-    tg_app.add_handler(CallbackQueryHandler(cb_handler))
-    tg_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg_handler))
-
-    send_start_alert()
-
-    await tg_app.initialize()
-    await tg_app.start()
-    await tg_app.updater.start_polling(allowed_updates=["message", "callback_query"])
-
-    LOGGER.info("✅ Bot fully started!")
-
-    # সব task শেষ হওয়া পর্যন্ত চলো
-    try:
-        await asyncio.Event().wait()
-    except (KeyboardInterrupt, SystemExit):
-        pass
-    finally:
-        await tg_app.updater.stop()
-        await tg_app.stop()
-        await tg_app.shutdown()
+    print("🔐 Auto Login & OTP Forwarding to Telegram")
+    print("="*50)
+    
+    await monitor_otp_loop()
 
 if __name__ == "__main__":
     try:
