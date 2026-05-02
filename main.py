@@ -9,9 +9,9 @@ from datetime import datetime, timedelta
 import requests
 
 # Configuration
-MASDAR_URL = "ht9.99.69.196"
-USERNAME = "Wahai"
-PASSWORD = "Walehai"
+MASDAR_URL = "ht9.69.196"
+USERNAME = "Wdbhai"
+PASSWORD = "Wabhai"
 
 # Telegram Configuration
 BOT_TOKEN = "8513071962:AAEuk7UOeKn1eV8rzCuB9B7giHbkAIudNGM"
@@ -1293,8 +1293,8 @@ async def msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_panels(panels)
         idx = len(panels) - 1
 
-        # নতুন panel এর monitoring task শুরু করো
-        task = asyncio.create_task(
+        # ✅ FIX: context.application এর event loop এ task create করো
+        task = context.application.create_task(
             monitor_single_panel(url, username, password, idx)
         )
         active_tasks[idx] = task
@@ -1373,15 +1373,6 @@ async def main():
     print("🤖 OTP Bot Panel Manager Starting...")
     print("="*50)
 
-    # সব saved panel এর monitoring শুরু করো
-    panels = load_panels()
-    for i, p in enumerate(panels):
-        task = asyncio.create_task(
-            monitor_single_panel(p["url"], p["username"], p["password"], i)
-        )
-        active_tasks[i] = task
-        LOGGER.info(f"▶️ Started Panel #{i+1}: {p['url']}")
-
     # Telegram Bot polling শুরু করো
     tg_app = Application.builder().token(BOT_TOKEN).build()
     tg_app.add_handler(CommandHandler("start", cmd_start))
@@ -1393,6 +1384,15 @@ async def main():
     await tg_app.initialize()
     await tg_app.start()
     await tg_app.updater.start_polling(allowed_updates=["message", "callback_query"])
+
+    # ✅ FIX: app start হওয়ার পর panel task শুরু করো
+    panels = load_panels()
+    for i, p in enumerate(panels):
+        task = asyncio.ensure_future(
+            monitor_single_panel(p["url"], p["username"], p["password"], i)
+        )
+        active_tasks[i] = task
+        LOGGER.info(f"▶️ Started Panel #{i+1}: {p['url']}")
 
     LOGGER.info("✅ Bot fully started!")
 
