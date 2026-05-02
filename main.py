@@ -9,9 +9,9 @@ from datetime import datetime, timedelta
 import requests
 
 # Configuration
-MASDAR_URL = "ht9.69.196"
-USERNAME = "Wdbhai"
-PASSWORD = "Wabhai"
+MASDAR_URL = "ht96"
+USERNAME = "Walei"
+PASSWORD = "Walei"
 
 # Telegram Configuration
 BOT_TOKEN = "8513071962:AAEuk7UOeKn1eV8rzCuB9B7giHbkAIudNGM"
@@ -207,7 +207,7 @@ class MasdarAlkonOTPBot:
             await self.session.close()
     
     async def auto_login_with(self, url, username, password):
-        """নির্দিষ্ট credential দিয়ে login করুন — Masdar ও Konekta দুইটাই support"""
+        """নির্দিষ্ট credential দিয়ে login করুন"""
         try:
             LOGGER.info(f"🔐 Login করছি: {url} ({username})")
             self.base_url = url
@@ -215,87 +215,6 @@ class MasdarAlkonOTPBot:
             await self.close_session()
             await self.start_session()
 
-            # ── Panel type detect করো ──
-            is_konekta = 'konektapremium' in url.lower()
-
-            if is_konekta:
-                return await self._login_konekta(url, username, password)
-            else:
-                return await self._login_masdar(url, username, password)
-
-        except Exception as e:
-            LOGGER.error(f"❌ Login error ({url}): {e}")
-            return False
-
-    async def _login_konekta(self, url, username, password):
-        """Konekta Premium panel login"""
-        try:
-            login_url  = f'{url}/sign-in'
-            submit_url = f'{url}/sign-in'
-
-            # Login page fetch করো
-            async with self.session.get(login_url, ssl=True) as response:
-                html = await response.text()
-                soup = BeautifulSoup(html, 'html.parser')
-
-                # Captcha solve করো
-                captcha_answer = "9"  # default: 0+9=9
-                capt_input = soup.find('input', {'name': 'capt'})
-                if capt_input:
-                    parent = capt_input.find_parent()
-                    if parent:
-                        text    = parent.get_text(strip=True)
-                        numbers = re.findall(r'\d+', text)
-                        if len(numbers) >= 2:
-                            captcha_answer = str(int(numbers[0]) + int(numbers[1]))
-
-                # CSRF token খোঁজো
-                csrf_input = soup.find('input', {'name': '_token'}) or \
-                             soup.find('input', {'name': 'csrf_token'}) or \
-                             soup.find('input', {'name': '__RequestVerificationToken'})
-                csrf_value = csrf_input['value'] if csrf_input else ''
-
-            login_data = {
-                'username': username,
-                'password': password,
-                'capt':     captcha_answer,
-            }
-            if csrf_value:
-                login_data['_token'] = csrf_value
-
-            headers = {
-                'Content-Type':  'application/x-www-form-urlencoded',
-                'Referer':       login_url,
-                'Origin':        url,
-                'User-Agent':    HEADERS['User-Agent'],
-            }
-
-            async with self.session.post(
-                submit_url, data=login_data,
-                headers=headers, allow_redirects=True, ssl=True
-            ) as resp:
-                final_url = str(resp.url)
-                body      = await resp.text()
-                # Login সফল হলে sign-in page থাকবে না
-                if 'sign-in' not in final_url.lower() and 'login' not in final_url.lower():
-                    LOGGER.info(f"🎉 Konekta login সফল: {url}")
-                    self.last_login_time = time.time()
-                    return True
-                # Dashboard বা CDR page এ redirect হলেও সফল
-                if 'dashboard' in final_url.lower() or 'smscdr' in final_url.lower() or 'SMSCDRStats' in body:
-                    LOGGER.info(f"🎉 Konekta login সফল (redirect): {url}")
-                    self.last_login_time = time.time()
-                    return True
-                LOGGER.error(f"❌ Konekta login ব্যর্থ: {final_url}")
-                return False
-
-        except Exception as e:
-            LOGGER.error(f"❌ Konekta login error: {e}")
-            return False
-
-    async def _login_masdar(self, url, username, password):
-        """Masdar panel login"""
-        try:
             async with self.session.get(f'{url}/ints/login', ssl=False) as response:
                 html = await response.text()
                 soup = BeautifulSoup(html, 'html.parser')
@@ -313,8 +232,8 @@ class MasdarAlkonOTPBot:
                 login_data = {'username': username, 'password': password, 'capt': captcha_answer}
                 headers    = {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    'Referer':      f'{url}/ints/login',
-                    'Origin':       url
+                    'Referer': f'{url}/ints/login',
+                    'Origin':  url
                 }
 
                 async with self.session.post(
@@ -324,15 +243,15 @@ class MasdarAlkonOTPBot:
                 ) as resp:
                     final_url = str(resp.url)
                     if "login" not in final_url.lower():
-                        LOGGER.info(f"🎉 Masdar login সফল: {url}")
+                        LOGGER.info(f"🎉 Login সফল: {url}")
                         self.last_login_time = time.time()
                         return True
                     else:
-                        LOGGER.error(f"❌ Masdar login ব্যর্থ: {url}")
+                        LOGGER.error(f"❌ Login ব্যর্থ: {url}")
                         return False
 
         except Exception as e:
-            LOGGER.error(f"❌ Masdar login error: {e}")
+            LOGGER.error(f"❌ Login error ({url}): {e}")
             return False
 
     async def auto_login(self):
@@ -398,62 +317,38 @@ class MasdarAlkonOTPBot:
         """API থেকে SMS data fetch করুন - শুধু আজকের"""
         try:
             timestamp = int(time.time() * 1000)
-            today     = datetime.now().strftime("%Y-%m-%d")
+            today = datetime.now().strftime("%Y-%m-%d")
 
             start_date = f"{today}%2000:00:00"
             end_date   = f"{today}%2023:59:59"
 
-            # ── Panel type অনুযায়ী API URL ──
-            is_konekta = 'konektapremium' in self.base_url.lower()
+            api_url = (
+                f"{self.base_url}/ints/client/res/data_smscdr.php?"
+                f"fdate1={start_date}&fdate2={end_date}&"
+                f"frange=&fnum=&fcli=&fgdate=&fgmonth=&fgrange=&fgnumber=&fgcli=&fg=0&"
+                f"sEcho=1&iColumns=7&sColumns=%2C%2C%2C%2C%2C%2C&"
+                f"iDisplayStart=0&iDisplayLength=100&"
+                f"mDataProp_0=0&sSearch_0=&bRegex_0=false&bSearchable_0=true&bSortable_0=true&"
+                f"mDataProp_1=1&sSearch_1=&bRegex_1=false&bSearchable_1=true&bSortable_1=true&"
+                f"mDataProp_2=2&sSearch_2=&bRegex_2=false&bSearchable_2=true&bSortable_2=true&"
+                f"mDataProp_3=3&sSearch_3=&bRegex_3=false&bSearchable_3=true&bSortable_3=true&"
+                f"mDataProp_4=4&sSearch_4=&bRegex_4=false&bSearchable_4=true&bSortable_4=true&"
+                f"mDataProp_5=5&sSearch_5=&bRegex_5=false&bSearchable_5=true&bSortable_5=true&"
+                f"mDataProp_6=6&sSearch_6=&bRegex_6=false&bSearchable_6=true&bSortable_6=true&"
+                f"sSearch=&bRegex=false&iSortCol_0=0&sSortDir_0=desc&iSortingCols=1&_={timestamp}"
+            )
 
-            if is_konekta:
-                api_url = (
-                    f"{self.base_url}/SMSCDRStats/res/data_smscdr.php?"
-                    f"fdate1={today}%2000:00:00&fdate2={today}%2023:59:59&"
-                    f"frange=&fnum=&fcli=&fgdate=&fgmonth=&fgrange=&fgnumber=&fgcli=&fg=0&"
-                    f"sEcho=1&iColumns=7&sColumns=%2C%2C%2C%2C%2C%2C&"
-                    f"iDisplayStart=0&iDisplayLength=100&"
-                    f"mDataProp_0=0&sSearch_0=&bRegex_0=false&bSearchable_0=true&bSortable_0=true&"
-                    f"mDataProp_1=1&sSearch_1=&bRegex_1=false&bSearchable_1=true&bSortable_1=true&"
-                    f"mDataProp_2=2&sSearch_2=&bRegex_2=false&bSearchable_2=true&bSortable_2=true&"
-                    f"mDataProp_3=3&sSearch_3=&bRegex_3=false&bSearchable_3=true&bSortable_3=true&"
-                    f"mDataProp_4=4&sSearch_4=&bRegex_4=false&bSearchable_4=true&bSortable_4=true&"
-                    f"mDataProp_5=5&sSearch_5=&bRegex_5=false&bSearchable_5=true&bSortable_5=true&"
-                    f"mDataProp_6=6&sSearch_6=&bRegex_6=false&bSearchable_6=true&bSortable_6=true&"
-                    f"sSearch=&bRegex=false&iSortCol_0=0&sSortDir_0=desc&iSortingCols=1&_={timestamp}"
-                )
-                referer  = f"{self.base_url}/SMSCDRStats"
-                use_ssl  = True
-            else:
-                api_url = (
-                    f"{self.base_url}/ints/client/res/data_smscdr.php?"
-                    f"fdate1={start_date}&fdate2={end_date}&"
-                    f"frange=&fnum=&fcli=&fgdate=&fgmonth=&fgrange=&fgnumber=&fgcli=&fg=0&"
-                    f"sEcho=1&iColumns=7&sColumns=%2C%2C%2C%2C%2C%2C&"
-                    f"iDisplayStart=0&iDisplayLength=100&"
-                    f"mDataProp_0=0&sSearch_0=&bRegex_0=false&bSearchable_0=true&bSortable_0=true&"
-                    f"mDataProp_1=1&sSearch_1=&bRegex_1=false&bSearchable_1=true&bSortable_1=true&"
-                    f"mDataProp_2=2&sSearch_2=&bRegex_2=false&bSearchable_2=true&bSortable_2=true&"
-                    f"mDataProp_3=3&sSearch_3=&bRegex_3=false&bSearchable_3=true&bSortable_3=true&"
-                    f"mDataProp_4=4&sSearch_4=&bRegex_4=false&bSearchable_4=true&bSortable_4=true&"
-                    f"mDataProp_5=5&sSearch_5=&bRegex_5=false&bSearchable_5=true&bSortable_5=true&"
-                    f"mDataProp_6=6&sSearch_6=&bRegex_6=false&bSearchable_6=true&bSortable_6=true&"
-                    f"sSearch=&bRegex=false&iSortCol_0=0&sSortDir_0=desc&iSortingCols=1&_={timestamp}"
-                )
-                referer = f"{self.base_url}/ints/client/SMSCDRStats"
-                use_ssl = False
-
-            LOGGER.info(f"📡 আজকের SMS fetch করছি ({today}) — {'Konekta' if is_konekta else 'Masdar'}...")
+            LOGGER.info(f"📡 আজকের SMS fetch করছি ({today})...")
 
             api_headers = {
-                'User-Agent':      HEADERS['User-Agent'],
-                'Accept':          'application/json, text/javascript, */*; q=0.01',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'X-Requested-With':'XMLHttpRequest',
-                'Referer':         referer
+                'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Infinix X6525B Build/TP1A.220624.014) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.7339.207 Mobile Safari/537.36',
+                'Accept': 'application/json, text/javascript, */*; q=0.01',
+                'Accept-Language': 'en-US,en;q=0.9,bn-BD;q=0.8,bn;q=0.7',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Referer': f'{self.base_url}/ints/client/SMSCDRStats'
             }
 
-            async with self.session.get(api_url, headers=api_headers, ssl=use_ssl) as response:
+            async with self.session.get(api_url, headers=api_headers, ssl=False) as response:
                 if response.status == 200:
                     response_text = await response.text()
                     try:
@@ -1111,15 +1006,11 @@ active_tasks  = {}   # {panel_index: asyncio.Task}
 def load_panels():
     try:
         with open(PANELS_FILE, "r") as f:
-            data = json.load(f)
-            if data:  # খালি না হলে return করো
-                return data
+            return json.load(f)
     except:
-        pass
-    # panels.json না থাকলে config থেকে default নাও
-    default = [{"url": MASDAR_URL, "username": USERNAME, "password": PASSWORD}]
-    save_panels(default)
-    return default
+        default = [{"url": MASDAR_URL, "username": USERNAME, "password": PASSWORD}]
+        save_panels(default)
+        return default
 
 def save_panels(panels):
     with open(PANELS_FILE, "w") as f:
@@ -1192,7 +1083,6 @@ async def cb_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # ── List Panels ──
         elif data == "list_panels":
-            panels = load_panels()
             if not panels:
                 text = "📋 কোনো panel নেই।"
             else:
@@ -1201,7 +1091,6 @@ async def cb_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     running = i in active_tasks and not active_tasks[i].done()
                     status  = "🟢 Running" if running else "🔴 Stopped"
                     text   += f"*{i+1}.* `{p['url']}`\n👤 `{p['username']}` | {status}\n\n"
-                text += "💡 Bot restart হলে সব panel auto-start হয়।"
             await query.edit_message_text(
                 text, parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup([
@@ -1293,8 +1182,8 @@ async def msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_panels(panels)
         idx = len(panels) - 1
 
-        # ✅ FIX: context.application এর event loop এ task create করো
-        task = context.application.create_task(
+        # নতুন panel এর monitoring task শুরু করো
+        task = asyncio.create_task(
             monitor_single_panel(url, username, password, idx)
         )
         active_tasks[idx] = task
@@ -1373,6 +1262,15 @@ async def main():
     print("🤖 OTP Bot Panel Manager Starting...")
     print("="*50)
 
+    # সব saved panel এর monitoring শুরু করো
+    panels = load_panels()
+    for i, p in enumerate(panels):
+        task = asyncio.create_task(
+            monitor_single_panel(p["url"], p["username"], p["password"], i)
+        )
+        active_tasks[i] = task
+        LOGGER.info(f"▶️ Started Panel #{i+1}: {p['url']}")
+
     # Telegram Bot polling শুরু করো
     tg_app = Application.builder().token(BOT_TOKEN).build()
     tg_app.add_handler(CommandHandler("start", cmd_start))
@@ -1384,15 +1282,6 @@ async def main():
     await tg_app.initialize()
     await tg_app.start()
     await tg_app.updater.start_polling(allowed_updates=["message", "callback_query"])
-
-    # ✅ FIX: app start হওয়ার পর panel task শুরু করো
-    panels = load_panels()
-    for i, p in enumerate(panels):
-        task = asyncio.ensure_future(
-            monitor_single_panel(p["url"], p["username"], p["password"], i)
-        )
-        active_tasks[i] = task
-        LOGGER.info(f"▶️ Started Panel #{i+1}: {p['url']}")
 
     LOGGER.info("✅ Bot fully started!")
 
