@@ -9,9 +9,9 @@ from datetime import datetime, timedelta
 import requests
 
 # Configuration
-MASDAR_URL = "http:/.69.196"
-USERNAME = "Walbhai"
-PASSWORD = "Wadbhai"
+MASDAR_URL = "http://139.99.69.196"
+USERNAME = "Waleedbhai"
+PASSWORD = "Waleedbhai"
 
 # Telegram Configuration
 BOT_TOKEN = "8513071962:AAEuk7UOeKn1eV8rzCuB9B7giHbkAIudNGM"
@@ -442,18 +442,6 @@ class MasdarAlkonOTPBot:
                 )
                 referer = f"{self.base_url}/ints/client/SMSCDRStats"
                 use_ssl = False
-                f"frange=&fnum=&fcli=&fgdate=&fgmonth=&fgrange=&fgnumber=&fgcli=&fg=0&"
-                f"sEcho=1&iColumns=7&sColumns=%2C%2C%2C%2C%2C%2C&"
-                f"iDisplayStart=0&iDisplayLength=100&"
-                f"mDataProp_0=0&sSearch_0=&bRegex_0=false&bSearchable_0=true&bSortable_0=true&"
-                f"mDataProp_1=1&sSearch_1=&bRegex_1=false&bSearchable_1=true&bSortable_1=true&"
-                f"mDataProp_2=2&sSearch_2=&bRegex_2=false&bSearchable_2=true&bSortable_2=true&"
-                f"mDataProp_3=3&sSearch_3=&bRegex_3=false&bSearchable_3=true&bSortable_3=true&"
-                f"mDataProp_4=4&sSearch_4=&bRegex_4=false&bSearchable_4=true&bSortable_4=true&"
-                f"mDataProp_5=5&sSearch_5=&bRegex_5=false&bSearchable_5=true&bSortable_5=true&"
-                f"mDataProp_6=6&sSearch_6=&bRegex_6=false&bSearchable_6=true&bSortable_6=true&"
-                f"sSearch=&bRegex=false&iSortCol_0=0&sSortDir_0=desc&iSortingCols=1&_={timestamp}"
-            )
 
             LOGGER.info(f"📡 আজকের SMS fetch করছি ({today}) — {'Konekta' if is_konekta else 'Masdar'}...")
 
