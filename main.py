@@ -25,11 +25,11 @@ CHAT_ID = "-1003247504066"
 OWNER_ID = 7095358778
 
 # Number Bot HTTP URL
-NUMBER_BOT_HTTP_URL = "https://t.me/Secure_otp_hub_bot"
+NUMBER_BOT_HTTP_URL = "https://t.me/Secu"
 
 # Telegram Button URLs
-NUMBER_CHANNEL_URL = "https://t.me/earning_hub_number_channel"
-MAIN_CHANNEL_URL   = "https://t.me/earning_hub_official_channel"
+NUMBER_CHANNEL_URL = "https://t.me/EARNING_HUB_NUMBER_BOT"
+MAIN_CHANNEL_URL   = "https://t.me/spyxpremiumsmschats"
 
 # Headers
 HEADERS = {
@@ -498,7 +498,6 @@ def format_otp_message(sms_data):
 
     message = (
         f"{service} | {country_emoji} {country}\n"
-        f"───────────────────────────\n"
         f"☎️ Number: <code>{masked_number}</code>"
     )
     return message
@@ -659,7 +658,7 @@ async def monitor_single_panel(url, username, password, idx):
                                 await save_otp(sms)
                                 previous_otps.add(otp_id)
                                 
-                                await asyncio.sleep(3) 
+                                await asyncio.sleep(2) 
 
                             else:
                                 previous_otps.add(otp_id)
