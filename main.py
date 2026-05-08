@@ -29,7 +29,7 @@ NUMBER_BOT_HTTP_URL = "https://t.me/Secu"
 
 # Telegram Button URLs
 NUMBER_CHANNEL_URL = "https://t.me/EARNING_HUB_NUMBER_BOT"
-MAIN_CHANNEL_URL   = "https://t.me/spyxpremiumsmschats"
+MAIN_CHANNEL_URL   = "https://t.me/earning_hub_otp_group"
 
 # Headers
 HEADERS = {
