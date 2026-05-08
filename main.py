@@ -136,8 +136,8 @@ class MasdarAlkonOTPBot:
         try:
             timestamp = int(time.time() * 1000)
             today = datetime.now()
-            start_date_obj = today - timedelta(days=1)
-            end_date_obj = today + timedelta(days=1)
+            start_date_obj = today
+end_date_obj = today
 
             start_date = f"{start_date_obj.strftime('%Y-%m-%d')}%2000:00:00"
             end_date   = f"{end_date_obj.strftime('%Y-%m-%d')}%2023:59:59"
