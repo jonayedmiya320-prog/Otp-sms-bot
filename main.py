@@ -498,7 +498,6 @@ def format_otp_message(sms_data):
 
     message = (
         f"{service} | {country_emoji} {country}\n"
-        f"───────────────────────────\n"
         f"☎️ Number: <code>{masked_number}</code>"
     )
     return message
