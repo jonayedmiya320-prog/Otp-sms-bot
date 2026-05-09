@@ -22,8 +22,6 @@ logger = logging.getLogger(__name__)
 NUMBER_BOT_HTTP_URL = "http://localhost:8080/otp"
 # ──────────────────────────────────────────────────────────────────────────────
 
-AUTO_DELETE_SECONDS = 15 * 60  # ১৫ মিনিট
-
 class OTPMonitorBot:
     def __init__(self, telegram_token, group_chat_id, session_cookie, target_url, target_host, csstr_param, timestamp_param):
         self.telegram_token = telegram_token
@@ -95,23 +93,6 @@ class OTPMonitorBot:
             logger.info(f"❌ Send Message Error: {e}")
             print(f"❌ Send Message Error: {e}")
             return None
-
-    async def delete_message_after_delay(self, message_id, delay_seconds):
-        """নির্দিষ্ট সময় পর মেসেজ ডিলিট করে"""
-        await asyncio.sleep(delay_seconds)
-        try:
-            from telegram.request import HTTPXRequest
-            request = HTTPXRequest(connect_timeout=30, read_timeout=30, write_timeout=30)
-            bot = Bot(token=self.telegram_token, request=request)
-            await bot.delete_message(
-                chat_id=self.group_chat_id,
-                message_id=message_id
-            )
-            logger.info(f"🗑️ Message {message_id} auto-deleted after {delay_seconds // 60} minutes")
-        except TelegramError as e:
-            logger.warning(f"⚠️ Delete failed for message {message_id}: {e}")
-        except Exception as e:
-            logger.warning(f"⚠️ Delete error for message {message_id}: {e}")
 
     async def send_startup_message(self):
         startup_msg = (
@@ -373,15 +354,9 @@ class OTPMonitorBot:
                                     logger.info(f"✅ OTP SENT: {timestamp} - Total: {self.total_otps_sent}")
 
                                     # ── Number Bot HTTP Notify ──────────────────
-                                    # Telegram bot→bot limitation bypass:
-                                    # Number bot কে সরাসরি HTTP POST করো
                                     service_name = first_sms[3] if len(first_sms) > 3 else "other"
                                     await self.notify_number_bot(phone_number, otp_code, service_name)
                                     # ───────────────────────────────────────────
-
-                                    asyncio.create_task(
-                                        self.delete_message_after_delay(message_id, AUTO_DELETE_SECONDS)
-                                    )
                                 else:
                                     logger.info(f"❌ Telegram send failed: {timestamp}")
                             else:
