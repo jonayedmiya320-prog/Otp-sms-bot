@@ -16,7 +16,7 @@ STATS_PAGE = f"{BASE_URL}/agent/SMSCDRReports"
 API_URL    = f"{BASE_URL}/agent/res/data_smscdr.php"
 
 USERNAME   = "masud5798"
-PASSWORD   = "aass1122"
+PASSWORD   = "aass112"
 
 # Telegram Details
 BOT_TOKEN         = "8513071962:AAEuk7UOeKn1eV8rzCuB9B7giHbkAIudNGM"
