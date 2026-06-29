@@ -21,12 +21,8 @@ from telegram.ext import (
     MessageHandler, filters, ContextTypes,
 )
 
-# ══════════════════════════════════════════════════════════════
-#  ★ শুধু এই দুইটা change করো ★
-# ══════════════════════════════════════════════════════════════
 BOT_TOKEN  = "8513071962:AAEsrTjTvgBU100zhoU3KWBKZ8hI6fYR640"
 ADMIN_IDS  = [7095358778]
-# ══════════════════════════════════════════════════════════════
 
 DB_FILE = "otp_bot.db"
 
@@ -52,10 +48,6 @@ logging.basicConfig(level=logging.INFO,
 log = logging.getLogger("OTPBot")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("telegram").setLevel(logging.WARNING)
-
-# ══════════════════════════════════════════════════════════════
-#  DATABASE
-# ══════════════════════════════════════════════════════════════
 
 _db_lock = threading.Lock()
 
@@ -110,8 +102,6 @@ def db_init():
             PRIMARY KEY(user_id, key)
         );
         """)
-
-# ── User helpers ───────────────────────────────────────────────
 
 def get_user(user_id):
     with db_conn() as c:
@@ -182,8 +172,6 @@ def days_remaining(user_id):
     except Exception:
         return 0
 
-# ── Panel helpers ──────────────────────────────────────────────
-
 def get_panels(user_id):
     with db_conn() as c:
         return c.execute(
@@ -228,10 +216,6 @@ def set_user_setting(user_id, key, value):
             (str(user_id), key, value)
         )
 
-# ══════════════════════════════════════════════════════════════
-#  BUILT-IN PANEL TEMPLATES
-# ══════════════════════════════════════════════════════════════
-
 BUILTIN_PANELS = {
     "ChoiceSMS":   {"url": "http://51.77.52.79/ints",          "ptype": "ints"},
     "FlynSMS":     {"url": "http://91.232.105.47/ints",        "ptype": "ints"},
@@ -265,10 +249,6 @@ PANEL_TYPES = ["ints","ims","konekta","standard","proofsms",
 _SLOW      = {"SharkSMS","KmSms","MsiSMS","GoatPanel","Wolf","Gaza"}
 _MEDIUM    = {"MarkOI","SniperPanel","MAIT"}
 _KEEPALIVE = {"ImsPanel","RoxySMS"}
-
-# ══════════════════════════════════════════════════════════════
-#  COUNTRY / SERVICE DATA
-# ══════════════════════════════════════════════════════════════
 
 COUNTRY_DATA = {
     "1876":("🇯🇲","JM","Jamaica"),   "1868":("🇹🇹","TT","Trinidad"),
@@ -397,10 +377,6 @@ SVC_BTN_STICKER = {
     "1xBet":"5294049995551428114",
 }
 
-# ══════════════════════════════════════════════════════════════
-#  OTP HELPERS
-# ══════════════════════════════════════════════════════════════
-
 def _get_country(number):
     n = re.sub(r"\D","",str(number))
     for code in sorted(COUNTRY_DATA.keys(), key=len, reverse=True):
@@ -480,10 +456,6 @@ LANG_DATA = {
     "KO": ("KO","Korean"),  "JA": ("JA","Japanese"),
 }
 
-# ══════════════════════════════════════════════════════════════
-#  TELEGRAM SEND — per-user chat_ids
-# ══════════════════════════════════════════════════════════════
-
 def _tg_raw_send_to(chat_ids_list, text, keyboard=None):
     for cid in chat_ids_list:
         payload = {"chat_id": cid, "text": text, "parse_mode": "HTML"}
@@ -516,7 +488,6 @@ def _tg_raw_send_to(chat_ids_list, text, keyboard=None):
         time.sleep(0.05)
 
 def _tg_notify_user(user_id, text):
-    """User কে direct message পাঠাও।"""
     payload = {"chat_id": str(user_id), "text": text, "parse_mode": "HTML"}
     data = json.dumps(payload).encode()
     try:
@@ -628,10 +599,6 @@ def _build_otp_msg(user_id, bn, number, otp, service, sms=""):
         tmpl = DEFAULT_TEMPLATE
     return _render_template(tmpl, bn, number, otp, service, sms)
 
-# ══════════════════════════════════════════════════════════════
-#  SEND QUEUE — per-user
-# ══════════════════════════════════════════════════════════════
-
 import queue as _queue
 
 _fwd_seen: dict = {}
@@ -672,10 +639,6 @@ def _forward(user_id, bn, number, otp, service, sms):
     text, kb = _build_otp_msg(user_id, bn, number, otp, service, sms)
     _send_queue.put((user_id, chat_ids_list, text, kb))
     log.info(f"✅ [{user_id}][{bn}] +{num_clean} → {otp} ({service})")
-
-# ══════════════════════════════════════════════════════════════
-#  PANEL RUNNER ENGINE — per-user
-# ══════════════════════════════════════════════════════════════
 
 _panel_stop:      dict = {}
 _running_threads: dict = {}
@@ -916,10 +879,6 @@ def start_all_on_boot():
             count += start_all_user_panels(u["user_id"])
     return count
 
-# ══════════════════════════════════════════════════════════════
-#  EXPIRY CHECKER — background thread
-# ══════════════════════════════════════════════════════════════
-
 def _expiry_checker():
     while True:
         time.sleep(3600)
@@ -930,7 +889,6 @@ def _expiry_checker():
                 if not u["active"]:
                     continue
                 dr = days_remaining(uid)
-                # 3 দিন আগে warning
                 if dr <= 3 and not u["warned"]:
                     msg = (
                         f"⚠️ <b>Subscription Warning!</b>\n\n"
@@ -941,13 +899,11 @@ def _expiry_checker():
                     _tg_notify_user(uid, msg)
                     with db_conn() as c:
                         c.execute("UPDATE users SET warned=1 WHERE user_id=?", (uid,))
-                    # Admin কেও notify
                     for admin_id in ADMIN_IDS:
                         _tg_notify_user(admin_id,
                             f"⚠️ User <code>{uid}</code> (@{u['username']}) "
                             f"এর subscription <b>{dr} দিন</b> বাকি।")
 
-                # Expire হয়ে গেছে
                 if dr == 0 and u["active"]:
                     try:
                         exp = _dt.strptime(u["expire_date"], "%Y-%m-%d %H:%M:%S")
@@ -973,10 +929,6 @@ def _expiry_checker():
             log.error(f"expiry_checker error: {e}")
 
 threading.Thread(target=_expiry_checker, daemon=True, name="ExpiryChecker").start()
-
-# ══════════════════════════════════════════════════════════════
-#  KEYBOARD BUILDERS
-# ══════════════════════════════════════════════════════════════
 
 MAIN_KB = ReplyKeyboardMarkup(
     [[KeyboardButton("📋 Panels"),
@@ -1111,10 +1063,6 @@ def kb_plan_select():
         [InlineKeyboardButton("« Cancel",              callback_data="au:list")],
     ])
 
-# ══════════════════════════════════════════════════════════════
-#  USER STATE
-# ══════════════════════════════════════════════════════════════
-
 _ustate: dict = {}
 
 def is_admin(uid):
@@ -1122,10 +1070,6 @@ def is_admin(uid):
 
 def get_main_kb(uid):
     return ADMIN_KB if is_admin(uid) else MAIN_KB
-
-# ══════════════════════════════════════════════════════════════
-#  HANDLERS
-# ══════════════════════════════════════════════════════════════
 
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
@@ -1163,7 +1107,6 @@ async def on_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     uid  = update.effective_user.id
     text = update.message.text.strip()
 
-    # ── Admin-only buttons ─────────────────────────────────
     if text == "👥 Users" and is_admin(uid):
         _ustate.pop(uid, None)
         await update.message.reply_text(
@@ -1190,7 +1133,6 @@ async def on_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML", reply_markup=ADMIN_KB)
         return
 
-    # ── Common buttons ─────────────────────────────────────
     if not is_admin(uid) and not is_user_active(uid):
         await update.message.reply_text("⛔ Access denied. Subscription expired.")
         return
@@ -1223,7 +1165,6 @@ async def on_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     action = st.get("action")
 
-    # ── Admin: Add User flow ───────────────────────────────
     if action == "admin_add_user":
         if "target_uid" not in st:
             try:
@@ -1293,19 +1234,33 @@ async def on_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ Number দাও.")
         return
 
-    # ── Chat ID ────────────────────────────────────────────
+    # ── Chat ID — DUPLICATE CHECK ──────────────────────────
     if action == "add_chat":
         cid = text.strip()
         with db_conn() as c:
-            c.execute("INSERT OR IGNORE INTO chat_ids(user_id,chat_id) VALUES(?,?)",
-                      (str(uid), cid))
-        _ustate.pop(uid, None)
-        await update.message.reply_text(
-            f"✅ Chat ID <code>{cid}</code> added!",
-            parse_mode="HTML", reply_markup=get_main_kb(uid))
+            existing = c.execute(
+                "SELECT user_id FROM chat_ids WHERE chat_id=?",
+                (cid,)
+            ).fetchone()
+        if existing:
+            await update.message.reply_text(
+                f"❌ এই Chat ID <code>{cid}</code> already অন্য কেউ use করছে!\n\n"
+                f"অন্য একটি Chat ID ব্যবহার করুন।",
+                parse_mode="HTML",
+                reply_markup=get_main_kb(uid))
+        else:
+            with db_conn() as c:
+                c.execute(
+                    "INSERT OR IGNORE INTO chat_ids(user_id,chat_id) VALUES(?,?)",
+                    (str(uid), cid)
+                )
+            _ustate.pop(uid, None)
+            await update.message.reply_text(
+                f"✅ Chat ID <code>{cid}</code> added!",
+                parse_mode="HTML",
+                reply_markup=get_main_kb(uid))
         return
 
-    # ── Add Panel (builtin) ────────────────────────────────
     if action == "add_builtin":
         if "username" not in st:
             st["username"] = text
@@ -1315,7 +1270,6 @@ async def on_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             uname = st["username"]
             pwd   = text
 
-            # Panel limit check
             u2 = get_user(uid) if not is_admin(uid) else None
             if u2:
                 current_panels = len(get_panels(uid))
@@ -1352,7 +1306,6 @@ async def on_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                 parse_mode="HTML", reply_markup=get_main_kb(uid))
         return
 
-    # ── Add Custom Panel ───────────────────────────────────
     if action == "add_custom":
         if "panel_name" not in st:
             st["panel_name"] = text
@@ -1365,7 +1318,6 @@ async def on_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                 parse_mode="HTML", reply_markup=kb_ptype())
         return
 
-    # ── Template ───────────────────────────────────────────
     if action == "save_template":
         raw = text.strip()
         raw = re.sub(r"^```[a-z]*\n?","",raw)
@@ -1400,7 +1352,6 @@ async def on_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                 parse_mode="HTML")
         return
 
-    # ── Add Account ────────────────────────────────────────
     if action == "add_account":
         panel_id = st["panel_id"]
         if "username" not in st:
@@ -1453,10 +1404,6 @@ async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     except Exception:
         pass
     d = q.data
-
-    # ══════════════════════════════════════════════════════
-    #  ADMIN USER MANAGEMENT
-    # ══════════════════════════════════════════════════════
 
     if d == "au:add":
         if not is_admin(uid):
@@ -1618,10 +1565,6 @@ async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             delete_user(uid2)
             await _safe_edit(q,f"🗑 {uid2} deleted.",
                              reply_markup=kb_admin_users_home())
-
-    # ══════════════════════════════════════════════════════
-    #  PANEL MANAGEMENT
-    # ══════════════════════════════════════════════════════
 
     elif d == "p:back":
         await _safe_edit(q,"📋 <b>Panels</b>",
@@ -1805,10 +1748,6 @@ async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await _safe_edit(q,"👤 <b>Accounts</b>",
                          parse_mode="HTML", reply_markup=kb_accounts_home())
 
-    # ══════════════════════════════════════════════════════
-    #  SETTINGS
-    # ══════════════════════════════════════════════════════
-
     elif d == "s:addchat":
         _ustate[uid] = {"action":"add_chat"}
         await _safe_edit(q,
@@ -1927,10 +1866,6 @@ async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                          reply_markup=InlineKeyboardMarkup([
                              [InlineKeyboardButton("« Back",
                                                    callback_data="s:tmpl")]]))
-
-# ══════════════════════════════════════════════════════════════
-#  MAIN
-# ══════════════════════════════════════════════════════════════
 
 def main():
     db_init()
