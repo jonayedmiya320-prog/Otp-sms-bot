@@ -37,8 +37,8 @@ DEFAULT_TEMPLATE = {
     "buttons": [
         {"type": "otp", "label": "{otp}", "value": "{otp}"},
         {"type": "sep"},
-        {"type": "link", "label": "📟 NUMBER", "value": "https://t.me/EARNING_HUB_NUMBER_BOT"},
-        {"type": "link", "label": "💬 SUPPORT", "value": "https://t.me/earning_hub_otp_group"}
+        {"type": "link", "label": "📟 NUMBER", "value": "https://t.me/EANG_HUB_NBER_BOT"},
+        {"type": "link", "label": "💬 SUPPORT", "value": "https://t.me/eng_hub_otp_group"}
     ]
 }
 
