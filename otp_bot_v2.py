@@ -22,7 +22,7 @@ from telegram.ext import (
 )
 
 BOT_TOKEN  = "8923672599:AAH4h-puJCNnh7t26sxh9BNRpFIjGo-R3LQ"
-ADMIN_IDS  = [7095358778]
+ADMIN_IDS  = [6897116774]
 
 DB_FILE = "otp_bot.db"
 
