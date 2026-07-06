@@ -21,8 +21,8 @@ from telegram.ext import (
     MessageHandler, filters, ContextTypes,
 )
 
-BOT_TOKEN  = "8923672599:AAH4h-puJCNnh7t26sxh9BNRpFIjGo-R3LQ"
-ADMIN_IDS  = [6897116774]
+BOT_TOKEN  = "8621808725:AAGdPHagukN2_MEJ1vl61QYWUDbjCCmKWDY"
+ADMIN_IDS  = [7374274116]
 
 DB_FILE = "otp_bot.db"
 
