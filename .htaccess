@@ -1,0 +1,19 @@
+Options -Indexes
+DirectoryIndex index.php
+
+# Never expose database dumps, local configuration, or backup files.
+<FilesMatch "(^\.|\.sql$|\.sqlite$|\.db$|\.bak$|\.backup$|\.log$|config\.php$)">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+# Preserve bearer tokens when Apache hands requests to PHP.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTP:Authorization} ^(.+)
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]
+</IfModule>
